@@ -15,8 +15,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Takes an arbitrarily long password and hashes it using the BCrypt
-// algorithm.
+// Hash takes an arbitrarily long password and hashes it using the
+// BCrypt algorithm.
 //
 // To compare a hash to its password, you MUST use the [Compare]
 // function, hashing the password again and using == should yield a
@@ -24,8 +24,8 @@ import (
 //
 // It handles the passwords that are larger than 72 bytes, which
 // BCrypt wouldn't accept, by XORing the content over itself in
-// 72-byte chuncks. This introduces chance for matching a passwords
-// in simplitic manner, because XOR is trivially reversible.
+// 72-byte chunks. This introduces chance for matching a passwords
+// in a simplistic manner, because XOR is trivially reversible.
 func Hash(password []byte) ([60]byte, error) {
 	ingest := atMax72Bytes(password)
 
@@ -40,8 +40,9 @@ func Hash(password []byte) ([60]byte, error) {
 	return [60]byte(digest), nil
 }
 
-// Compares a hash generated through [Hash] with a password, it
-// returns true for a match, and false for not a match or an error.
+// Compare compares a hash generated through [Hash] with a password,
+// it returns true for a match, and false for not a match or an
+// error.
 func Compare(hash, password []byte) bool {
 	err := bcrypt.CompareHashAndPassword(hash, atMax72Bytes(password))
 	return err == nil
