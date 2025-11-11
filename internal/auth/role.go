@@ -46,7 +46,7 @@ func (l Role) IsValidOrUnlogged() bool {
 
 // String returns the string representation of the Role.
 func (l Role) String() string {
-	return levelStrings[l]
+	return roleStrings[l]
 }
 
 // Hierarchy defines a partial ordering in the Role type.
@@ -69,15 +69,15 @@ func DefualtHierarchy(r0, r1 Role) bool {
 // the string does not correspond to any Role, the second return
 // value is false.
 func FromString(string string) (Role, bool) {
-	level, in := stringLevels[string]
+	role, in := stringRoles[string]
 	if !in {
 		return Unlogged, false
 	}
 
-	return level, true
+	return role, true
 }
 
-var levelStrings = map[Role]string{
+var roleStrings = map[Role]string{
 	Chief:    "chief",
 	Promoted: "promoted-admin",
 	Admin:    "admin",
@@ -86,7 +86,7 @@ var levelStrings = map[Role]string{
 	Unlogged: "unlogged",
 }
 
-var stringLevels = mirror(levelStrings)
+var stringRoles = mirror(roleStrings)
 
 func mirror[K, V comparable](m map[K]V) map[V]K {
 	nm := make(map[V]K, len(m))
