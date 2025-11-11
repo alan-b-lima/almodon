@@ -17,7 +17,8 @@ import (
 
 // Heap is an implementation of a minheap abstract data
 // structure. Elements of this data structure must
-// implement the [Lesser] interface on and for itself.
+// implement the [Lesser] interface on and for itself. The
+// zero value of Heap is an empty heap.
 //
 // Heap is NOT safe for concurrent access by multiple
 // goroutines.
@@ -31,6 +32,14 @@ type Lesser[T any] interface {
 	Less(T) bool
 }
 
+// Make preallocates memory for a heap with a certain
+// capacity.
+func Make[T Lesser[T]](cap int) Heap[T] {
+	return Heap[T]{
+		_heap: _heap[T]{make([]T, 0, cap)},
+	}
+}
+
 // Len returns the number of elements in the heap.
 func (h *Heap[T]) Len() int {
 	return h._heap.Len()
@@ -41,6 +50,14 @@ func (h *Heap[T]) Len() int {
 // The complexity is O(log n) where n = h.Len().
 func (h *Heap[T]) Push(v T) {
 	heap.Push(&h._heap, v)
+}
+
+// PushMany inserts multiple elements onto the heap.
+//
+// The complexity is O(m + n) where m = len(v) and n = h.Len().
+func (h *Heap[T]) PushMany(v ...T) {
+	h._heap.ess = append(h._heap.ess, v...)
+	heap.Init(&h._heap)
 }
 
 // Pop removes the smaller element, determined by [Lesser],
