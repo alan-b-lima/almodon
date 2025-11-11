@@ -26,8 +26,8 @@ const (
 
 // Hierarchy defines a partial ordering over the Role type.
 //
-// If [Hierarchy](r0, r1) evaluates to true, then r0 inherits the
-// permissions of r1.
+// A call to an implemeter of [Hierarchy] h can be read as such: if
+// h(x, y), then the permissions of x are inherited by y.
 type Hierarchy func(Role, Role) bool
 
 // IsValid returns whether the role refers to an actual role, that
@@ -49,10 +49,10 @@ func (l Role) String() string {
 	return roleStrings[l]
 }
 
-// Hierarchy defines a partial ordering in the Role type.
+// DefualtHierarchy defines a partial ordering in the Role type.
 //
-// If [Hierarchy](r0, r1) evaluates to true, then r0 inherits the
-// permissions of r1.
+// If [DefualtHierarchy](r0, r1) evaluates to true, then the
+// permissions of r0 are inherited by r1.
 func DefualtHierarchy(r0, r1 Role) bool {
 	if !r0.IsValidOrUnlogged() || !r1.IsValidOrUnlogged() {
 		return false
@@ -60,6 +60,10 @@ func DefualtHierarchy(r0, r1 Role) bool {
 
 	if r0 == Unlogged {
 		return true
+	}
+
+	if r1 == Unlogged {
+		return false
 	}
 
 	return r0 >= r1
