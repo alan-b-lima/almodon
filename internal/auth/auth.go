@@ -1,28 +1,44 @@
 package auth
 
-import (
-	"fmt"
-	"slices"
-)
+import "fmt"
 
-type Authorizer struct {
-	classes []Level
+// Permission represents an authorization requirement.
+type Permission struct {
+	classes   []Role
+	hierarchy func(Role, Role) bool
 }
 
-func Permission(classes ...Level) Authorizer {
-	return Authorizer{
-		classes: classes,
+// Permit creates a Permission that authorizes any of the given roles
+// according to the default hierarchy.
+func Permit(classes ...Role) Permission {
+	return Permission{
+		classes:   classes,
+		hierarchy: DefualtHierarchy,
 	}
 }
 
-func (auth *Authorizer) Authorize(level Level) bool {
-	if slices.Contains(auth.classes, level) {
-		return true
+// PermitHierarchy creates a Permission that authorizes any of the
+// given roles according to the provided hierarchy.
+func PermitHierarchy(hierarchy Hierarchy, classes ...Role) Permission {
+	return Permission{
+		classes:   classes,
+		hierarchy: hierarchy,
+	}
+}
+
+// Authorize returns whether the given role is authorized by the
+// Permission.
+func (auth *Permission) Authorize(role Role) bool {
+	for _, class := range auth.classes {
+		if auth.hierarchy(class, role) {
+			return true
+		}
 	}
 
 	return false
 }
 
-func (auth Authorizer) String() string {
+// String returns the string representation of the Permission.
+func (auth Permission) String() string {
 	return fmt.Sprint(auth.classes)
 }
