@@ -49,11 +49,11 @@ func (l Role) String() string {
 	return roleStrings[l]
 }
 
-// DefualtHierarchy defines a partial ordering in the Role type.
+// DefaultHierarchy defines a partial ordering in the Role type.
 //
-// If [DefualtHierarchy](r0, r1) evaluates to true, then the
+// If [DefaultHierarchy](r0, r1) evaluates to true, then the
 // permissions of r0 are inherited by r1.
-func DefualtHierarchy(r0, r1 Role) bool {
+func DefaultHierarchy(r0, r1 Role) bool {
 	if !r0.IsValidOrUnlogged() || !r1.IsValidOrUnlogged() {
 		return false
 	}
