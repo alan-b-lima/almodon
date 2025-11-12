@@ -91,19 +91,30 @@ func main() {
 
 Com exceção do primeiro commit "ready, set, Go!", todo commit deve seguir a estrutura:
 
-```go
+```bnf
 <tipo> [ "(" <escopo> ")" ] [ "!" ] ": " <mensagem>
 ```
 
 O `<tipo>` pode ser um dos valores a seguir:
 
-- `feat`: para criação de novas funcionalidades
+- `feat`: para a adição de uma nova funcionalidade
 - `doc`: para a documentação de funcionalidades
-- `fix`: para o conserto de bugs
-- `test`: para a adição de testes
+- `fix`: para a correção de bugs
+- `test`: para a adição ou modificação de testes
+- `refactor`: para mudanças no código que não adicionam funcionalidades ou consertam bugs
+- `style`: para mudanças que não afetam o significado do código (espaços em branco, formatação, etc)
+- `merge`: para commits de merge
 
 O `<escopo>` refere-se ao pacote ou unidade semântica afetada pelo commit, mudanças que envolvem mais de um pacote ou unidade semântica em um único commit devem ser evitadas.
 
 O `!` opcional descreve `BREAKING CHANGE`, que é presente quando uma API pública é alterada, que pode fazer outros pacotes, em cascata, terem que ser alterados.
 
-A `<mensagem>` é uma descrição curta, normalmente uma única oração, que descreve as alterações feita nesse commit.
+A `<mensagem>` é uma descrição curta, normalmente uma única oração no infinitivo, comumente, mas não obrigatoriamente em inglês, que descreve as alterações feita nesse commit. A mensagem não deve terminar com ponto final nem conter letras maiúsculas, exceto para identificadores e siglas.
+
+### 7. Formato de pull requests
+
+Pull requests devem possuir um título e uma descrição. O título deve seguir o mesmo formato dos títulos das issues, ou seja, começar com um verbo no infinitivo, em português, e ser uma descrição curta do pull request.
+
+A descrição, também em português, deve conter uma explicação detalhada das alterações feitas no pull request, incluindo o motivo dessas alterações e quaisquer informações relevantes para a revisão do código.
+
+Caso o pull request esteja relacionado a uma issue, deve-se referenciar a issue na descrição, caso ele feche alguma issue, deve-se usar a sintaxe `resolve #<número da issue>`, pois "resolve" é a palavra reservada para fechar issues automaticamente no GitHub, e essa é a que mais se aproxima do português com um sentido natural.
