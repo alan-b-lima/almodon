@@ -13,7 +13,7 @@ type Permission struct {
 func Permit(classes ...Role) Permission {
 	return Permission{
 		classes:   classes,
-		hierarchy: DefualtHierarchy,
+		hierarchy: DefaultHierarchy,
 	}
 }
 

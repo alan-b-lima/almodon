@@ -15,7 +15,7 @@ type AuthService struct {
 func New(service user.Service) user.Service {
 	return &AuthService{
 		service:   service,
-		hierarchy: auth.DefualtHierarchy,
+		hierarchy: auth.DefaultHierarchy,
 	}
 }
 

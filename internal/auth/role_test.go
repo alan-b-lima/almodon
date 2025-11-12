@@ -45,7 +45,7 @@ func TestDefaultHierarchy(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if DefualtHierarchy(test.x, test.y) != test.inherits {
+		if DefaultHierarchy(test.x, test.y) != test.inherits {
 			if test.inherits {
 				t.Errorf("%v does inherits %v", test.x, test.y)
 			} else {
