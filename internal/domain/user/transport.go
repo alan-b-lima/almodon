@@ -9,8 +9,8 @@ import (
 
 type (
 	ListRequest struct {
-		Offset int `json:"-"`
-		Limit  int `json:"-"`
+		Offset int `query:"offset"`
+		Limit  int `query:"limit"`
 	}
 
 	GetRequest struct {
