@@ -71,7 +71,7 @@ func ProcessName(name string) (string, error) {
 var reEmail = regexp.MustCompile(`^[0-9A-Za-z_%+-]+(\.[0-9A-Za-z_%+-]+)*@[0-9A-Za-z-]+(\.[0-9A-Za-zA-Z-]+)*\.[A-Za-z]{2,}$`)
 
 func ProcessEmail(email string) (string, error) {
-	if reEmail.MatchString(email) {
+	if !reEmail.MatchString(email) {
 		return "", xerrors.ErrEmailInvalid
 	}
 

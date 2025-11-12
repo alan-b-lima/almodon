@@ -61,12 +61,12 @@ func Authenticate(users GetterBySIAPE, sessions sessionpkg.Creater, siape int, p
 func Actor(users Getter, sessions sessionpkg.Getter, session uuid.UUID) (auth.Actor, error) {
 	res, err := sessionpkg.Get(sessions, session)
 	if err != nil {
-		return auth.NewUnlogged(), err
+		return auth.NewUnlogged(), xerrors.ErrUnauthenticatedUser.New(err)
 	}
 
 	ures, err := users.Get(res.User)
 	if err != nil {
-		return auth.NewUnlogged(), err
+		return auth.NewUnlogged(), xerrors.ErrUnauthenticatedUser.New(err)
 	}
 
 	return auth.NewLogged(
