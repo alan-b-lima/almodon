@@ -5,23 +5,25 @@ import (
 	"time"
 
 	"github.com/alan-b-lima/almodon/internal/domain/order"
+	"github.com/alan-b-lima/almodon/internal/support/store"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
 )
 
 type Store interface {
-	List(context.Context, uuid.UUID) ([]Record, error)
+	List(ctx context.Context) ([]Record, error)
 
-	Get(context.Context, uuid.UUID) (FullRecord, error)
-	GetByTitle(context.Context, string) (FullRecord, error)
+	Get(ctx context.Context, uuid uuid.UUID) (FullRecord, error)
+	GetByTitle(ctx context.Context, title string) (FullRecord, error)
 
-	Create(context.Context, Entity) error
+	Create(ctx context.Context, ent Entity) error
 
-	Rename(context.Context, uuid.UUID, string) error
-	Upgrade(context.Context, uuid.UUID, uuid.UUID) error
+	Rename(ctx context.Context, uuid uuid.UUID, title string) error
+	Upgrade(ctx context.Context, stem uuid.UUID, order uuid.UUID) error
 
-	Delete(context.Context, uuid.UUID) error
+	Delete(ctx context.Context, uuid uuid.UUID) error
 
-	RunTx(context.Context, func(Store) error) error
+	RunTx(ctx context.Context, proc func(Store) error) error
+	JoinTx(store store.Store) (Store, error)
 }
 
 type (
