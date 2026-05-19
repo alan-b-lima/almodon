@@ -5,6 +5,8 @@ import (
 	"database/sql"
 )
 
+type Store any
+
 type DBTx interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 
