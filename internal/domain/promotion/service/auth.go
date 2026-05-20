@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alan-b-lima/almodon/internal/domain/auth"
+	"github.com/alan-b-lima/almodon/internal/domain/auth/perms"
 	"github.com/alan-b-lima/almodon/internal/domain/promotion"
 	"github.com/alan-b-lima/almodon/internal/support/service"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
@@ -21,10 +22,8 @@ func NewGate(promotions promotion.Service, gate auth.Authenticator) promotion.Se
 	}
 }
 
-var perm_chief = auth.Allow(auth.Chief)
-
 func (g *Gate) Get(ctx context.Context, uuid uuid.UUID) (promotion.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, g.Gate, perm_chief)
+	ctx, _, err := service.AuthorizeFromContext(ctx, g.Gate, perms.UserMgmt)
 	if err != nil {
 		return promotion.Result{}, err
 	}
@@ -33,7 +32,7 @@ func (g *Gate) Get(ctx context.Context, uuid uuid.UUID) (promotion.Result, error
 }
 
 func (g *Gate) GetByUser(ctx context.Context, uuid uuid.UUID) (promotion.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, g.Gate, perm_chief)
+	ctx, _, err := service.AuthorizeFromContext(ctx, g.Gate, perms.UserMgmt)
 	if err != nil {
 		return promotion.Result{}, err
 	}
@@ -42,7 +41,7 @@ func (g *Gate) GetByUser(ctx context.Context, uuid uuid.UUID) (promotion.Result,
 }
 
 func (g *Gate) Create(ctx context.Context, req promotion.Create) (promotion.CreateResult, error) {
-	_, err := service.AuthorizeFromContext(ctx, g.Gate, perm_chief)
+	ctx, _, err := service.AuthorizeFromContext(ctx, g.Gate, perms.UserMgmt)
 	if err != nil {
 		return promotion.CreateResult{}, err
 	}
@@ -51,7 +50,7 @@ func (g *Gate) Create(ctx context.Context, req promotion.Create) (promotion.Crea
 }
 
 func (g *Gate) Update(ctx context.Context, uuid uuid.UUID, req promotion.Update) error {
-	_, err := service.AuthorizeFromContext(ctx, g.Gate, perm_chief)
+	ctx, _, err := service.AuthorizeFromContext(ctx, g.Gate, perms.UserMgmt)
 	if err != nil {
 		return err
 	}
@@ -60,7 +59,7 @@ func (g *Gate) Update(ctx context.Context, uuid uuid.UUID, req promotion.Update)
 }
 
 func (g *Gate) Delete(ctx context.Context, uuid uuid.UUID) error {
-	_, err := service.AuthorizeFromContext(ctx, g.Gate, perm_chief)
+	ctx, _, err := service.AuthorizeFromContext(ctx, g.Gate, perms.UserMgmt)
 	if err != nil {
 		return err
 	}

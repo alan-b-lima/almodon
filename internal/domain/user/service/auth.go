@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alan-b-lima/almodon/internal/domain/auth"
+	"github.com/alan-b-lima/almodon/internal/domain/auth/perms"
 	"github.com/alan-b-lima/almodon/internal/domain/user"
 	"github.com/alan-b-lima/almodon/internal/support/service"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
@@ -21,13 +22,8 @@ func NewGate(service user.Service, gate auth.Authenticator) user.Service {
 	}
 }
 
-var (
-	perm_chief = auth.Allow(auth.Chief)
-	perm_all   = auth.Allow(auth.Unlogged)
-)
-
 func (c *Gate) List(ctx context.Context) ([]user.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_chief)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.UserMgmt)
 	if err != nil {
 		return []user.Result{}, err
 	}
@@ -36,7 +32,7 @@ func (c *Gate) List(ctx context.Context) ([]user.Result, error) {
 }
 
 func (c *Gate) Get(ctx context.Context, uuid uuid.UUID) (user.Result, error) {
-	actor, err := service.AuthorizeFromContext(ctx, c.Gate, perm_chief)
+	ctx, actor, err := service.AuthorizeFromContext(ctx, c.Gate, perms.UserMgmt)
 	if err != nil {
 		if actor.User == uuid {
 			goto Do
@@ -55,7 +51,7 @@ func (c *Gate) GetBySIAPE(ctx context.Context, siape string) (user.Result, error
 		return user.Result{}, err
 	}
 
-	actor, err := service.AuthorizeFromContext(ctx, c.Gate, perm_chief)
+	ctx, actor, err := service.AuthorizeFromContext(ctx, c.Gate, perms.UserMgmt)
 	if err != nil {
 		if actor.User == res.UUID {
 			goto Do
@@ -69,7 +65,7 @@ Do:
 }
 
 func (c *Gate) Me(ctx context.Context) (user.Result, error) {
-	actor, err := service.AuthorizeFromContext(ctx, c.Gate, perm_all)
+	ctx, actor, err := service.AuthorizeFromContext(ctx, c.Gate, perms.UserSelf)
 	if err != nil {
 		return user.Result{}, err
 	}
@@ -78,7 +74,7 @@ func (c *Gate) Me(ctx context.Context) (user.Result, error) {
 }
 
 func (c *Gate) Create(ctx context.Context, req user.Create) (user.CreateResult, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_chief)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.UserMgmt)
 	if err != nil {
 		return user.CreateResult{}, err
 	}
@@ -87,7 +83,7 @@ func (c *Gate) Create(ctx context.Context, req user.Create) (user.CreateResult, 
 }
 
 func (c *Gate) Patch(ctx context.Context, uuid uuid.UUID, req user.Patch) error {
-	actor, err := service.AuthorizeFromContext(ctx, c.Gate, perm_chief)
+	ctx, actor, err := service.AuthorizeFromContext(ctx, c.Gate, perms.UserMgmt)
 	if err != nil {
 		if actor.User == uuid {
 			goto Do
@@ -101,7 +97,7 @@ Do:
 }
 
 func (c *Gate) Delete(ctx context.Context, uuid uuid.UUID) error {
-	actor, err := service.AuthorizeFromContext(ctx, c.Gate, perm_chief)
+	ctx, actor, err := service.AuthorizeFromContext(ctx, c.Gate, perms.UserMgmt)
 	if err != nil {
 		if actor.User == uuid {
 			goto Do
