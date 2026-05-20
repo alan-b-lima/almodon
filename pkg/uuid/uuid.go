@@ -35,7 +35,7 @@ var (
 	ErrBadSliceLength = errors.New("uuid: slice does not has 16 bytes")
 	ErrBadString      = errors.New("uuid: string could not be parsed correctly")
 	ErrBadJSONString  = errors.New("uuid: slice is a malformed JSON string")
-	ErrBadSQLSource   = errors.New("uuid: source is not a valid SQL value for UUID")
+	ErrBadSQLSource   = errors.New("uuid: source cannot be converted to an UUID")
 )
 
 var _Format = "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x"
@@ -87,6 +87,11 @@ func NewUUIDv7() UUID {
 		0xD: byte(randB >> 0x10), 0xE: byte(randB >> 0x08),
 		0xF: byte(randB >> 0x00),
 	}
+}
+
+// IsZero reports whether the given UUID is the Nil UUID.
+func (uuid UUID) IsZero() bool {
+	return uuid == Nil
 }
 
 // FromBytes converts an UUID from a byte slice. The given byte slice
@@ -183,19 +188,34 @@ func (uuid UUID) Value() (driver.Value, error) {
 }
 
 // Scan implements SQL [driver.Scanner] interface, it expects the
-// source to be a byte slice of length 16.
+// source to be:
+//   - a byte slice, to be converted with [FromBytes].
+//   - a string, to be converted with [FromString].
+//   - nil, to be converted to the Nil UUID.
 func (uuid *UUID) Scan(src any) error {
-	if bytes, ok := src.([]byte); ok {
-		u, err := FromBytes(bytes)
+	switch src := src.(type) {
+	case nil:
+		*uuid = Nil
+
+	case []byte:
+		u, err := FromBytes(src)
 		if err != nil {
 			return err
 		}
-
 		*uuid = u
-		return nil
+
+	case string:
+		u, err := FromString(src)
+		if err != nil {
+			return err
+		}
+		*uuid = u
+
+	default:
+		return ErrBadSQLSource
 	}
 
-	return ErrBadSQLSource
+	return nil
 }
 
 var (
