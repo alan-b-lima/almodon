@@ -28,7 +28,7 @@ var (
 )
 
 func (c *Gate) List(ctx context.Context) ([]item.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (c *Gate) List(ctx context.Context) ([]item.Result, error) {
 }
 
 func (c *Gate) ListByMaterial(ctx context.Context, material uuid.UUID) ([]item.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (c *Gate) ListByMaterial(ctx context.Context, material uuid.UUID) ([]item.R
 }
 
 func (c *Gate) ListByECampus(ctx context.Context, ecampus int) ([]item.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (c *Gate) ListByECampus(ctx context.Context, ecampus int) ([]item.Result, e
 }
 
 func (c *Gate) ListByCATMAT(ctx context.Context, catmat int) ([]item.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (c *Gate) ListByCATMAT(ctx context.Context, catmat int) ([]item.Result, err
 }
 
 func (c *Gate) ListBySIADS(ctx context.Context, siads int) ([]item.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +72,17 @@ func (c *Gate) ListBySIADS(ctx context.Context, siads int) ([]item.Result, error
 	return c.Service.ListBySIADS(ctx, siads)
 }
 
+func (c *Gate) ListByLot(ctx context.Context, lot uuid.UUID) ([]item.Result, error) {
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.Service.ListByLot(ctx, lot)
+}
+
 func (c *Gate) Get(ctx context.Context, uuid uuid.UUID) (item.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return item.Result{}, err
 	}
@@ -81,17 +90,8 @@ func (c *Gate) Get(ctx context.Context, uuid uuid.UUID) (item.Result, error) {
 	return c.Service.Get(ctx, uuid)
 }
 
-func (c *Gate) History(ctx context.Context, uuid uuid.UUID) (item.HistoryResult, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
-	if err != nil {
-		return item.HistoryResult{}, err
-	}
-
-	return c.Service.History(ctx, uuid)
-}
-
 func (c *Gate) Create(ctx context.Context, req item.Create) (item.CreateResult, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
 	if err != nil {
 		return item.CreateResult{}, err
 	}
@@ -99,17 +99,8 @@ func (c *Gate) Create(ctx context.Context, req item.Create) (item.CreateResult, 
 	return c.Service.Create(ctx, req)
 }
 
-func (c *Gate) UpdateAmount(ctx context.Context, uuid uuid.UUID, req item.UpdateAmount) error {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
-	if err != nil {
-		return err
-	}
-
-	return c.Service.UpdateAmount(ctx, uuid, req)
-}
-
 func (c *Gate) Patch(ctx context.Context, uuid uuid.UUID, req item.Patch) error {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
 	if err != nil {
 		return err
 	}
@@ -118,7 +109,7 @@ func (c *Gate) Patch(ctx context.Context, uuid uuid.UUID, req item.Patch) error 
 }
 
 func (c *Gate) Delete(ctx context.Context, uuid uuid.UUID) error {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
 	if err != nil {
 		return err
 	}

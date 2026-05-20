@@ -29,7 +29,6 @@ func New(items item.Service) *Resource {
 		"GET /items/catmat/{catmat}":     rc.ListByCATMAT,
 		"GET /items/siads/{siads}":       rc.ListBySIADS,
 		"GET /items/{uuid}":              rc.Get,
-		"GET /items/history/{uuid}":      rc.History,
 		"POST /items/{$}":                rc.Create,
 		"PATCH /items/{uuid}":            rc.Patch,
 		"DELETE /items/{uuid}":           rc.Delete,
@@ -95,21 +94,10 @@ func (rc *Resource) Get(w http.ResponseWriter, r *http.Request) {
 	resource.GetHandler(r.Context(), func(ctx context.Context) (item.Result, error) {
 		uuid, err := uuid.FromString(r.PathValue("uuid"))
 		if err != nil {
-			return item.Result{}, resource.ErrBadInteger
+			return item.Result{}, resource.ErrBadUUID
 		}
 
 		return rc.Items.Get(ctx, uuid)
-	}, w, r)
-}
-
-func (rc *Resource) History(w http.ResponseWriter, r *http.Request) {
-	resource.GetHandler(r.Context(), func(ctx context.Context) (item.HistoryResult, error) {
-		uuid, err := uuid.FromString(r.PathValue("uuid"))
-		if err != nil {
-			return item.HistoryResult{}, resource.ErrBadInteger
-		}
-
-		return rc.Items.History(ctx, uuid)
 	}, w, r)
 }
 

@@ -9,6 +9,4 @@ var (
 
 	ErrAmountNegative   = problem.New(problem.SemanticalError, "item-amount-negative", "amount cannot be negative", nil, nil)
 	ErrUnitCostNegative = problem.New(problem.SemanticalError, "item-unit-cost-negative", "unit cost cannot be negative", nil, nil)
-
-	ErrGenerationalFailure = problem.New(problem.LostUpdate, "item-generational-failure", "item has been modified since last read", nil, nil)
 )

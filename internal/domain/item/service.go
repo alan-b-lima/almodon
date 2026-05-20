@@ -15,13 +15,12 @@ type Service interface {
 	ListByECampus(context.Context, int) ([]Result, error)
 	ListByCATMAT(context.Context, int) ([]Result, error)
 	ListBySIADS(context.Context, int) ([]Result, error)
+	ListByLot(context.Context, uuid.UUID) ([]Result, error)
 
 	Get(context.Context, uuid.UUID) (Result, error)
-	History(context.Context, uuid.UUID) (HistoryResult, error)
 
 	Create(context.Context, Create) (CreateResult, error)
 
-	UpdateAmount(context.Context, uuid.UUID, UpdateAmount) error
 	Patch(context.Context, uuid.UUID, Patch) error
 
 	Delete(context.Context, uuid.UUID) error
@@ -30,17 +29,13 @@ type Service interface {
 type (
 	Create struct {
 		Material uuid.UUID   `json:"material"`
-		Amount   float64     `json:"amount"`
+		Lot      uuid.UUID   `json:"lot"`
+		Original float64     `json:"original"`
 		UnitCost money.Money `json:"unit_cost"`
 		Expires  time.Time   `json:"expires"`
 	}
 
-	UpdateAmount struct {
-		Amount float64 `json:"amount"`
-	}
-
 	Patch struct {
-		Material opt.Opt[uuid.UUID]   `json:"material"`
 		UnitCost opt.Opt[money.Money] `json:"unit_cost"`
 		Expires  opt.Opt[time.Time]   `json:"expires"`
 	}
@@ -49,36 +44,19 @@ type (
 type (
 	Result struct {
 		UUID        uuid.UUID   `json:"uuid"`
+		Material    uuid.UUID   `json:"material"`
 		Name        string      `json:"name"`
 		ECampus     int         `json:"ecampus"`
 		CATMAT      int         `json:"catmat"`
 		SIADS       int         `json:"siads"`
-		Material    uuid.UUID   `json:"material"`
-		Amount      float64     `json:"amount"`
-		AmountFlag  Stock       `json:"amount_flag"`
-		UnitCost    money.Money `json:"unit_cost"`
 		Unit        string      `json:"unit"`
+		Lot         uuid.UUID   `json:"lot"`
+		Available   float64     `json:"available"`
+		UnitCost    money.Money `json:"unit_cost"`
 		Expires     time.Time   `json:"expires"`
 		ExpiresFlag Expiration  `json:"expires_flag"`
 		Created     time.Time   `json:"created"`
 		Updated     time.Time   `json:"updated"`
-	}
-
-	HistoryResult struct {
-		UUID     uuid.UUID    `json:"uuid"`
-		Version  int          `json:"version"`
-		Created  time.Time    `json:"created"`
-		Updated  time.Time    `json:"updated"`
-		Versions []PastResult `json:"versions"`
-	}
-
-	PastResult struct {
-		Version  int         `json:"version"`
-		Material uuid.UUID   `json:"material"`
-		Amount   float64     `json:"amount"`
-		UnitCost money.Money `json:"unit_cost"`
-		Expires  time.Time   `json:"expires"`
-		Created  time.Time   `json:"created"`
 	}
 
 	CreateResult struct {
