@@ -35,11 +35,17 @@ func ProcessSIAPE(siape string) (string, error) {
 }
 
 func ProcessName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+
 	if name == "" {
 		return "", ErrNameEmpty
 	}
 
-	if len(name) >= NameMaxLen {
+	if len(name)/utf8.UTFMax > NameMaxLen {
+		return "", ErrNameTooLong
+	}
+
+	if utf8.RuneCountInString(name) > NameMaxLen {
 		return "", ErrNameTooLong
 	}
 
