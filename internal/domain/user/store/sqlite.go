@@ -7,11 +7,8 @@ import (
 
 	"github.com/alan-b-lima/almodon/internal/domain/auth"
 	"github.com/alan-b-lima/almodon/internal/domain/user"
-	"github.com/alan-b-lima/almodon/internal/support/service"
 	"github.com/alan-b-lima/almodon/internal/support/store"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
-
-	"github.com/alan-b-lima/pkg/problem"
 )
 
 //go:embed sqlite.sql
@@ -85,7 +82,16 @@ func (s *SQLDB) get(ctx context.Context, query string, args ...any) (user.Record
 }
 
 func (s *SQLDB) Create(ctx context.Context, rec user.Entity) error {
-	_, err := s.db.ExecContext(ctx, create, rec.UUID.Bytes(), rec.SIAPE, rec.Name, rec.Email, rec.Password, rec.Role.String(), rec.Created, rec.Updated)
+	_, err := s.db.ExecContext(ctx, create,
+		rec.UUID,
+		rec.SIAPE,
+		rec.Name,
+		rec.Email,
+		rec.Password,
+		rec.Role.String(),
+		rec.Created,
+		rec.Updated,
+	)
 	if err != nil {
 		return store.ErrExec.Cause(err).Make()
 	}
@@ -94,7 +100,12 @@ func (s *SQLDB) Create(ctx context.Context, rec user.Entity) error {
 }
 
 func (s *SQLDB) Patch(ctx context.Context, uuid uuid.UUID, rec user.PatchEntity) error {
-	res, err := s.db.ExecContext(ctx, patch, store.NoneNil(rec.Name), store.NoneNil(rec.Email), rec.Updated, uuid.Bytes())
+	res, err := s.db.ExecContext(ctx, patch,
+		rec.Name.Interface(),
+		rec.Email.Interface(),
+		rec.Updated,
+		uuid,
+	)
 	if err != nil {
 		return store.ErrExec.Cause(err).Make()
 	}
@@ -108,7 +119,7 @@ func (s *SQLDB) Patch(ctx context.Context, uuid uuid.UUID, rec user.PatchEntity)
 }
 
 func (s *SQLDB) Delete(ctx context.Context, uuid uuid.UUID) error {
-	_, err := s.db.ExecContext(ctx, delete, uuid.Bytes())
+	_, err := s.db.ExecContext(ctx, delete, uuid)
 	if err != nil {
 		return store.ErrExec.Cause(err).Make()
 	}
@@ -135,11 +146,10 @@ func (s *SQLDB) JoinTx(other any) (user.Store, error) {
 }
 
 func scan(scanner store.Scanner, ent *user.Record) error {
-	var bytes []byte
 	var string string
 
 	if err := scanner.Scan(
-		&bytes,
+		&ent.UUID,
 		&ent.SIAPE,
 		&ent.Name,
 		&ent.Email,
@@ -152,22 +162,13 @@ func scan(scanner store.Scanner, ent *user.Record) error {
 		return err
 	}
 
-	err := problem.Join(
-		service.Set(&ent.UUID, bytes, uuid.FromBytes),
-		service.Set(&ent.Role, string, role_from_string),
-	)
-	if err != nil {
-		return err
+	role, ok := auth.FromString(string)
+	if !ok {
+		return user.ErrRoleInvalid
 	}
 
+	ent.Role = role
 	return nil
-}
-
-func role_from_string(role string) (auth.Role, error) {
-	if role, ok := auth.FromString(role); ok {
-		return role, nil
-	}
-	return auth.Unlogged, user.ErrRoleInvalid
 }
 
 const (
