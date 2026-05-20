@@ -85,14 +85,14 @@ func (s *SQLDB) Get(ctx context.Context, uuid uuid.UUID) (material.Record, error
 	return ent, nil
 }
 
-func (s *SQLDB) Create(ctx context.Context, rec material.CreateRecord) error {
+func (s *SQLDB) Create(ctx context.Context, rec material.Entity) error {
 	_, err := s.db.ExecContext(ctx, create,
 		rec.UUID.Bytes(),
 		rec.Name,
 		rec.ECampus,
 		rec.CATMAT,
 		rec.SIADS,
-		rec.Description,
+		rec.Descript,
 		rec.Unit,
 		rec.Min,
 		rec.Created,
@@ -105,13 +105,13 @@ func (s *SQLDB) Create(ctx context.Context, rec material.CreateRecord) error {
 	return nil
 }
 
-func (s *SQLDB) Patch(ctx context.Context, uuid uuid.UUID, rec material.PatchRecord) error {
+func (s *SQLDB) Patch(ctx context.Context, uuid uuid.UUID, rec material.PatchEntity) error {
 	_, err := s.db.ExecContext(ctx, patch,
 		store.NoneNil(rec.Name),
 		store.NoneNil(rec.ECampus),
 		store.NoneNil(rec.CATMAT),
 		store.NoneNil(rec.SIADS),
-		store.NoneNil(rec.Description),
+		store.NoneNil(rec.Descript),
 		store.NoneNil(rec.Unit),
 		store.NoneNil(rec.Min),
 		rec.Updated,
@@ -142,7 +142,7 @@ func scan(ent *material.Record, scanner interface{ Scan(...any) error }) (bool, 
 		&ent.ECampus,
 		&ent.CATMAT,
 		&ent.SIADS,
-		&ent.Description,
+		&ent.Descript,
 		&ent.Unit,
 		&ent.Min,
 		&ent.Created,
@@ -159,12 +159,12 @@ func scan(ent *material.Record, scanner interface{ Scan(...any) error }) (bool, 
 }
 
 const (
-	list            = `select uuid, name, ecampus, catmat, siads, description, unit, min, created, updated from Materials`
-	list_by_ecampus = `select uuid, name, ecampus, catmat, siads, description, unit, min, created, updated from Materials where ecampus = ?`
-	list_by_catmat  = `select uuid, name, ecampus, catmat, siads, description, unit, min, created, updated from Materials where catmat = ?`
-	list_by_siads   = `select uuid, name, ecampus, catmat, siads, description, unit, min, created, updated from Materials where siads = ?`
-	get             = `select uuid, name, ecampus, catmat, siads, description, unit, min, created, updated from Materials where uuid = ?`
-	create          = `insert into Materials (uuid, name, ecampus, catmat, siads, description, unit, min, created, updated) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	patch           = `update Materials set name = coalesce(?, name), ecampus = coalesce(?, ecampus), catmat = coalesce(?, catmat), siads = coalesce(?, siads), description = coalesce(?, description), unit = coalesce(?, unit), min = coalesce(?, min), updated = ? where uuid = ?`
+	list            = `select uuid, name, ecampus, catmat, siads, descript, unit, min, created, updated from Materials`
+	list_by_ecampus = `select uuid, name, ecampus, catmat, siads, descript, unit, min, created, updated from Materials where ecampus = ?`
+	list_by_catmat  = `select uuid, name, ecampus, catmat, siads, descript, unit, min, created, updated from Materials where catmat = ?`
+	list_by_siads   = `select uuid, name, ecampus, catmat, siads, descript, unit, min, created, updated from Materials where siads = ?`
+	get             = `select uuid, name, ecampus, catmat, siads, descript, unit, min, created, updated from Materials where uuid = ?`
+	create          = `insert into Materials (uuid, name, ecampus, catmat, siads, descript, unit, min, created, updated) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	patch           = `update Materials set name = coalesce(?, name), ecampus = coalesce(?, ecampus), catmat = coalesce(?, catmat), siads = coalesce(?, siads), descript = coalesce(?, descript), unit = coalesce(?, unit), min = coalesce(?, min), updated = ? where uuid = ?`
 	delete          = `delete from Materials where uuid = ?`
 )

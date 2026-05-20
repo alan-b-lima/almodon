@@ -27,7 +27,7 @@ var (
 )
 
 func (c *Gate) List(ctx context.Context) ([]material.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (c *Gate) List(ctx context.Context) ([]material.Result, error) {
 }
 
 func (c *Gate) ListByECampus(ctx context.Context, ecampus int) ([]material.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (c *Gate) ListByECampus(ctx context.Context, ecampus int) ([]material.Resul
 }
 
 func (c *Gate) ListByCATMAT(ctx context.Context, catmat int) ([]material.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (c *Gate) ListByCATMAT(ctx context.Context, catmat int) ([]material.Result,
 }
 
 func (c *Gate) ListBySIADS(ctx context.Context, siads int) ([]material.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (c *Gate) ListBySIADS(ctx context.Context, siads int) ([]material.Result, e
 }
 
 func (c *Gate) Get(ctx context.Context, uuid uuid.UUID) (material.Result, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
 	if err != nil {
 		return material.Result{}, err
 	}
@@ -72,7 +72,7 @@ func (c *Gate) Get(ctx context.Context, uuid uuid.UUID) (material.Result, error)
 }
 
 func (c *Gate) Create(ctx context.Context, req material.Create) (material.CreateResult, error) {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
 	if err != nil {
 		return material.CreateResult{}, err
 	}
@@ -81,7 +81,7 @@ func (c *Gate) Create(ctx context.Context, req material.Create) (material.Create
 }
 
 func (c *Gate) Patch(ctx context.Context, uuid uuid.UUID, req material.Patch) error {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (c *Gate) Patch(ctx context.Context, uuid uuid.UUID, req material.Patch) er
 }
 
 func (c *Gate) Delete(ctx context.Context, uuid uuid.UUID) error {
-	_, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
 	if err != nil {
 		return err
 	}

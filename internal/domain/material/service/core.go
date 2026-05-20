@@ -90,13 +90,13 @@ func (c *Core) Get(ctx context.Context, id uuid.UUID) (material.Result, error) {
 }
 
 func (c *Core) Create(ctx context.Context, req material.Create) (material.CreateResult, error) {
-	var rec material.CreateRecord
+	var rec material.Entity
 	err := problem.Join(
 		service.Set(&rec.Name, req.Name, material.ProcessName),
 		service.Set(&rec.ECampus, req.ECampus, material.ProcessECampus),
 		service.Set(&rec.CATMAT, req.CATMAT, material.ProcessCATMAT),
 		service.Set(&rec.SIADS, req.SIADS, material.ProcessSIADS),
-		service.Set(&rec.Description, req.Description, material.ProcessDescription),
+		service.Set(&rec.Descript, req.Descript, material.ProcessDescription),
 		service.Set(&rec.Unit, req.Unit, material.ProcessUnit),
 		service.Set(&rec.Min, req.Min, material.ProcessMin),
 	)
@@ -113,14 +113,13 @@ func (c *Core) Create(ctx context.Context, req material.Create) (material.Create
 }
 
 func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req material.Patch) error {
-	var rec material.PatchRecord
+	var rec material.PatchEntity
 	err := problem.Join(
-		service.SetOpt(&rec.Name, req.Name, material.ProcessName),
 		service.SetOpt(&rec.Name, req.Name, material.ProcessName),
 		service.SetOpt(&rec.ECampus, req.ECampus, material.ProcessECampus),
 		service.SetOpt(&rec.CATMAT, req.CATMAT, material.ProcessCATMAT),
 		service.SetOpt(&rec.SIADS, req.SIADS, material.ProcessSIADS),
-		service.SetOpt(&rec.Description, req.Description, material.ProcessDescription),
+		service.SetOpt(&rec.Descript, req.Descript, material.ProcessDescription),
 		service.SetOpt(&rec.Unit, req.Unit, material.ProcessUnit),
 		service.SetOpt(&rec.Min, req.Min, material.ProcessMin),
 	)
