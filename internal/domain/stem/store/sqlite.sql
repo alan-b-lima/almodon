@@ -1,20 +1,20 @@
 create table if not exists `Stems` (
     `uuid`    blob     not null primary key,
     `bloom`   blob,
-    `title`   text     not null,
+    `name`    text     not null,
     `created` datetime not null,
 
-    foreign key (`bloom`) references `Blooms`(`uuid`)
+    foreign key (`bloom`) references `Orders`(`uuid`)
 );
 
 create view if not exists `Stems_View` as
     select
         s.`uuid`,
         s.`bloom`,
-        s.`title`,
-        o.`version`,
+        s.`name`,
+        coalesce(o.`version`, 0) as 'version',
         s.`created`,
-        o.`created` as 'updated'
+        coalesce(o.`created`, s.`created`) as 'updated'
     from
         `Stems` s
-        join `Orders` o on s.`bloom` = o.`uuid`;
+        left join `Orders` o on s.`bloom` = o.`uuid`;

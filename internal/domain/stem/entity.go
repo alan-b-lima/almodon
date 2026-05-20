@@ -5,11 +5,20 @@ import (
 	"unicode"
 )
 
-func ProcessTitle(title string) (string, error) {
+const (
+	NameMinLen = 3
+	NameMaxLen = 32
+)
+
+func ProcessName(title string) (string, error) {
 	title = strings.TrimSpace(title)
 
-	if title == "" {
-		return "", ErrTitleInvalid
+	if len(title) < NameMinLen {
+		return "", ErrTitleTooShort
+	}
+
+	if len(title) > NameMaxLen {
+		return "", ErrTitleTooLong
 	}
 
 	for _, rune := range title {

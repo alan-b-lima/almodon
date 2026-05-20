@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/alan-b-lima/almodon/internal/domain/order"
 	"github.com/alan-b-lima/almodon/internal/support/store"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
 )
@@ -12,12 +11,12 @@ import (
 type Store interface {
 	List(ctx context.Context) ([]Record, error)
 
-	Get(ctx context.Context, uuid uuid.UUID) (FullRecord, error)
-	GetByTitle(ctx context.Context, title string) (FullRecord, error)
+	Get(ctx context.Context, uuid uuid.UUID) (Record, error)
+	GetByName(ctx context.Context, name string) (Record, error)
 
 	Create(ctx context.Context, ent Entity) error
 
-	Rename(ctx context.Context, uuid uuid.UUID, title string) error
+	Rename(ctx context.Context, uuid uuid.UUID, name string) error
 	Upgrade(ctx context.Context, stem uuid.UUID, order uuid.UUID) error
 
 	Delete(ctx context.Context, uuid uuid.UUID) error
@@ -30,28 +29,17 @@ type (
 	Record struct {
 		UUID    uuid.UUID
 		Bloom   uuid.UUID
-		Title   string
+		Name    string
 		Version int
 		Created time.Time
 		Updated time.Time
-	}
-
-	FullRecord struct {
-		UUID    uuid.UUID
-		Bloom   uuid.UUID
-		Title   string
-		Version int
-		Created time.Time
-		Updated time.Time
-		Orders  []order.Record
 	}
 )
 
 type (
 	Entity struct {
 		UUID    uuid.UUID
-		Bloom   uuid.UUID
-		Title   string
+		Name    string
 		Created time.Time
 	}
 )
