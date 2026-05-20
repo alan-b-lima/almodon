@@ -6,6 +6,7 @@ import (
 	"github.com/alan-b-lima/almodon/internal/domain/auth"
 	"github.com/alan-b-lima/almodon/internal/domain/session"
 	"github.com/alan-b-lima/almodon/internal/domain/user"
+	"github.com/alan-b-lima/almodon/pkg/uuid"
 )
 
 type Core struct {
@@ -28,8 +29,8 @@ func (c *Core) Login(ctx context.Context, siape string, password string) (auth.R
 		return auth.Result{}, err
 	}
 
-	if err := user.ComparePassword(res.Password, password); err != nil {
-		return auth.Result{}, err
+	if err := c.Users.Auth(ctx, res.UUID, password); err != nil {
+		return auth.Result{}, auth.ErrUnauthenticated.Cause(err).Make()
 	}
 
 	sres, err := c.Sessions.Create(ctx, session.Create{User: res.UUID})
@@ -60,4 +61,8 @@ func (c *Core) Actor(ctx context.Context, session session.Token) (auth.Actor, er
 	}
 
 	return auth.NewLogged(ures.UUID, ures.Role), nil
+}
+
+func (c *Core) Sign(ctx context.Context, user uuid.UUID, password string) error {
+	return c.Users.Auth(ctx, user, password)
 }

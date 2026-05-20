@@ -16,6 +16,8 @@ type Service interface {
 	GetBySIAPE(context.Context, string) (Result, error)
 	Me(context.Context) (Result, error)
 
+	Auth(context.Context, uuid.UUID, string) error
+
 	Create(context.Context, Create) (CreateResult, error)
 
 	Patch(context.Context, uuid.UUID, Patch) error
@@ -44,7 +46,6 @@ type (
 		SIAPE    string    `json:"siape"`
 		Name     string    `json:"name"`
 		Email    string    `json:"email"`
-		Password []byte    `json:"-"`
 		Role     auth.Role `json:"role"`
 		Logged   bool      `json:"logged"`
 		Created  time.Time `json:"created"`

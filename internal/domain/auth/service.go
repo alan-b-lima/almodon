@@ -19,6 +19,10 @@ type Authenticator interface {
 	Actor(ctx context.Context, session session.Token) (Actor, error)
 }
 
+type Signer interface {
+	Sign(ctx context.Context, user uuid.UUID, password string) error
+}
+
 type (
 	Create struct {
 		SIAPE    string `json:"siape"`

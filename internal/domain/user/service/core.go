@@ -33,7 +33,7 @@ func (c *Core) List(ctx context.Context) ([]user.Result, error) {
 
 	res := make([]user.Result, 0, len(recs))
 	for _, rec := range recs {
-		res = append(res, user.Result(rec))
+		res = append(res, translate(&rec))
 	}
 
 	return res, nil
@@ -45,7 +45,7 @@ func (c *Core) Get(ctx context.Context, uuid uuid.UUID) (user.Result, error) {
 		return user.Result{}, err
 	}
 
-	return user.Result(rec), nil
+	return translate(&rec), nil
 }
 
 func (c *Core) GetBySIAPE(ctx context.Context, siape string) (user.Result, error) {
@@ -54,11 +54,20 @@ func (c *Core) GetBySIAPE(ctx context.Context, siape string) (user.Result, error
 		return user.Result{}, err
 	}
 
-	return user.Result(rec), nil
+	return translate(&rec), nil
 }
 
 func (c *Core) Me(ctx context.Context) (user.Result, error) {
 	return user.Result{}, support.ErrTODO
+}
+
+func (c *Core) Auth(ctx context.Context, uuid uuid.UUID, password string) error {
+	rec, err := c.Users.Get(ctx, uuid)
+	if err != nil {
+		return err
+	}
+
+	return user.ComparePassword(rec.Password, password)
 }
 
 func (c *Core) Create(ctx context.Context, req user.Create) (user.CreateResult, error) {
@@ -128,4 +137,17 @@ func (c *Core) Delete(ctx context.Context, uuid uuid.UUID) error {
 		}
 		return nil
 	})
+}
+
+func translate(rec *user.Record) user.Result {
+	return user.Result{
+		UUID:    rec.UUID,
+		SIAPE:   rec.SIAPE,
+		Name:    rec.Name,
+		Email:   rec.Email,
+		Role:    rec.Role,
+		Logged:  rec.Logged,
+		Created: rec.Created,
+		Updated: rec.Updated,
+	}
 }
