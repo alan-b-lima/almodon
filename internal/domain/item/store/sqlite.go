@@ -6,10 +6,8 @@ import (
 	_ "embed"
 
 	"github.com/alan-b-lima/almodon/internal/domain/item"
-	"github.com/alan-b-lima/almodon/internal/support/service"
 	"github.com/alan-b-lima/almodon/internal/support/store"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
-	"github.com/alan-b-lima/pkg/problem"
 )
 
 //go:embed sqlite.sql
@@ -36,7 +34,7 @@ func (s *SQLDB) List(ctx context.Context) ([]item.Record, error) {
 }
 
 func (s *SQLDB) ListByMaterial(ctx context.Context, uuid uuid.UUID) ([]item.Record, error) {
-	rows, err := s.db.QueryContext(ctx, list_by_material, uuid.Bytes())
+	rows, err := s.db.QueryContext(ctx, list_by_material, uuid)
 	if err != nil {
 		return nil, store.ErrQuery.Cause(err).Make()
 	}
@@ -75,8 +73,18 @@ func (s *SQLDB) ListBySIADS(ctx context.Context, siads int) ([]item.Record, erro
 	return scan_list(rows)
 }
 
+func (s *SQLDB) ListByLot(ctx context.Context, lot uuid.UUID) ([]item.Record, error) {
+	rows, err := s.db.QueryContext(ctx, list_by_lot, lot)
+	if err != nil {
+		return nil, store.ErrQuery.Cause(err).Make()
+	}
+	defer rows.Close()
+
+	return scan_list(rows)
+}
+
 func (s *SQLDB) Get(ctx context.Context, uuid uuid.UUID) (item.Record, error) {
-	row := s.db.QueryRowContext(ctx, get, uuid.Bytes())
+	row := s.db.QueryRowContext(ctx, get, uuid)
 
 	ent, err := scan(row)
 	if err != nil {
@@ -90,107 +98,66 @@ func (s *SQLDB) Get(ctx context.Context, uuid uuid.UUID) (item.Record, error) {
 	return ent, nil
 }
 
-func (s *SQLDB) History(ctx context.Context, uuid uuid.UUID) (item.HistoryRecord, error) {
-	var hist item.HistoryRecord
-	err := s.run_tx(ctx, func(s *SQLDB) error {
-		rec, err := s.Get(ctx, uuid)
-		if err != nil {
-			return err
-		}
-
-		hist = item.HistoryRecord{
-			UUID:    rec.UUID,
-			Version: rec.Version,
-			Created: rec.Created,
-			Updated: rec.Updated,
-		}
-
-		rows, err := s.db.QueryContext(ctx, history, uuid.Bytes())
-		if err != nil {
-			return store.ErrQuery.Cause(err).Make()
-		}
-		defer rows.Close()
-
-		recs := make([]item.PastRecord, 0, hist.Version)
-		for rows.Next() {
-			var rec item.PastRecord
-			if err := scan_true(rows, &rec); err != nil {
-				return store.ErrQuery.Cause(err).Make()
-			}
-
-			recs = append(recs, rec)
-		}
-		if err := rows.Err(); err != nil {
-			return store.ErrQuery.Cause(err).Make()
-		}
-
-		hist.Versions = recs
-		return nil
-	})
+func (s *SQLDB) Create(ctx context.Context, ent item.Entity) error {
+	_, err := s.db.ExecContext(ctx, create,
+		ent.UUID,
+		ent.Material,
+		ent.Lot,
+		ent.Available,
+		ent.UnitCost.Cents(),
+		ent.Expires,
+		ent.Created,
+		ent.Updated,
+	)
 	if err != nil {
-		return item.HistoryRecord{}, err
+		return store.ErrExec.Cause(err).Make()
 	}
 
-	return hist, nil
+	return nil
 }
 
-func (s *SQLDB) Create(ctx context.Context, ent item.Entity) error {
-	return s.run_tx(ctx, func(s *SQLDB) error {
-		version := 1
+func (s *SQLDB) Update(ctx context.Context, uuid uuid.UUID, ent item.UpdateEntity) error {
+	res, err := s.db.ExecContext(ctx, update, ent.Amount, ent.Updated, uuid)
+	if err != nil {
+		return store.ErrExec.Cause(err).Make()
+	}
 
-		if _, err := s.db.ExecContext(ctx, create_true, ent.UUID.Bytes(), version, ent.Material.Bytes(), ent.Amount, int64(ent.UnitCost), ent.Expires, ent.Updated); err != nil {
-			return store.ErrQuery.Cause(err).Make()
-		}
+	if count, err := res.RowsAffected(); err == nil && count == 0 {
+		return item.ErrNotFound
+	}
 
-		if _, err := s.db.ExecContext(ctx, create_surf, ent.UUID.Bytes(), version, ent.Created); err != nil {
-			return store.ErrQuery.Cause(err).Make()
-		}
-
-		return nil
-	})
+	return nil
 }
 
 func (s *SQLDB) Patch(ctx context.Context, uuid uuid.UUID, ent item.PatchEntity) error {
-	return s.run_tx(ctx, func(s *SQLDB) error {
-		rec, err := s.Get(ctx, uuid)
-		if err != nil {
-			return err
-		}
+	res, err := s.db.ExecContext(ctx, patch,
+		ent.UnitCost,
+		ent.Expires,
+		ent.Updated,
+		uuid,
+	)
+	if err != nil {
+		return store.ErrExec.Cause(err).Make()
+	}
 
-		version := rec.Version + 1
+	if count, err := res.RowsAffected(); err == nil && count == 0 {
+		return item.ErrNotFound
+	}
 
-		if _, err := s.db.ExecContext(ctx, create_true,
-			uuid.Bytes(),
-			version,
-			store.Or(ent.Material, rec.Material).Bytes(),
-			store.Or(ent.Amount, rec.Amount),
-			store.Or(ent.UnitCost, rec.UnitCost),
-			store.Or(ent.Expires, rec.Expires),
-			ent.Updated,
-		); err != nil {
-			return store.ErrQuery.Cause(err).Make()
-		}
-
-		if _, err := s.db.ExecContext(ctx, update_surf, version, uuid.Bytes()); err != nil {
-			return store.ErrQuery.Cause(err).Make()
-		}
-
-		return nil
-	})
+	return nil
 }
 
 func (s *SQLDB) Delete(ctx context.Context, uuid uuid.UUID) error {
-	return s.run_tx(ctx, func(s *SQLDB) error {
-		if _, err := s.db.ExecContext(ctx, delete_surf, uuid.Bytes()); err != nil {
-			return store.ErrQuery.Cause(err).Make()
-		}
+	_, err := s.db.ExecContext(ctx, delete, uuid)
+	if err != nil {
+		return store.ErrExec.Cause(err).Make()
+	}
 
-		if _, err := s.db.ExecContext(ctx, delete_true, uuid.Bytes()); err != nil {
-			return store.ErrQuery.Cause(err).Make()
-		}
+	return nil
+}
 
-		return nil
-	})
+func (s *SQLDB) Tx() store.DBTx {
+	return s.db
 }
 
 func (s *SQLDB) RunTx(ctx context.Context, proc func(item.Store) error) error {
@@ -199,42 +166,31 @@ func (s *SQLDB) RunTx(ctx context.Context, proc func(item.Store) error) error {
 	})
 }
 
-func (s *SQLDB) run_tx(ctx context.Context, proc func(*SQLDB) error) error {
-	if _, ok := s.db.(*sql.DB); !ok {
-		return proc(s)
+func (s *SQLDB) JoinTx(other store.Store) (item.Store, error) {
+	tx, err := store.JoinTx(other, s.db)
+	if err != nil {
+		return nil, err
 	}
 
-	return store.WithTx(ctx, s.db, func(tx store.DBTx) error {
-		return proc(&SQLDB{db: tx})
-	})
+	return &SQLDB{db: tx}, nil
 }
 
 func scan(scanner store.Scanner) (item.Record, error) {
-	var bytes1, bytes2 []byte
-
 	var rec item.Record
 	if err := scanner.Scan(
-		&bytes1,
-		&rec.Version,
+		&rec.UUID,
+		&rec.Material,
 		&rec.Name,
 		&rec.ECampus,
 		&rec.CATMAT,
 		&rec.SIADS,
-		&bytes2,
-		&rec.Amount,
-		(*int64)(&rec.UnitCost),
 		&rec.Unit,
+		&rec.Lot,
+		&rec.Available,
+		(*int64)(&rec.UnitCost),
 		&rec.Expires,
-		&rec.Min,
 		&rec.Created,
 		&rec.Updated,
-	); err != nil {
-		return item.Record{}, err
-	}
-
-	if err := problem.Join(
-		service.Set(&rec.UUID, bytes1, uuid.FromBytes),
-		service.Set(&rec.Material, bytes2, uuid.FromBytes),
 	); err != nil {
 		return item.Record{}, err
 	}
@@ -245,12 +201,12 @@ func scan(scanner store.Scanner) (item.Record, error) {
 func scan_list(rows *sql.Rows) ([]item.Record, error) {
 	var recs []item.Record
 	for rows.Next() {
-		ent, err := scan(rows)
+		rec, err := scan(rows)
 		if err != nil {
 			return nil, store.ErrQuery.Cause(err).Make()
 		}
 
-		recs = append(recs, ent)
+		recs = append(recs, rec)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, store.ErrQuery.Cause(err).Make()
@@ -259,37 +215,20 @@ func scan_list(rows *sql.Rows) ([]item.Record, error) {
 	return recs, nil
 }
 
-func scan_true(scanner store.Scanner, rec *item.PastRecord) error {
-	var bytes []byte
-
-	if err := scanner.Scan(
-		&rec.Version,
-		&bytes,
-		&rec.Amount,
-		(*int64)(&rec.UnitCost),
-		&rec.Expires,
-		&rec.Created,
-	); err != nil {
-		return err
-	}
-
-	return service.Set(&rec.Material, bytes, uuid.FromBytes)
-}
-
 const (
-	list             = `select uuid, version, name, ecampus, catmat, siads, material, amount, unit_cost, unit, expires, min, created, updated from Items_View`
+	list             = `select uuid, material, name, ecampus, catmat, siads, unit, lot, available, unit_cost, expires, created, updated from Items_View`
 	list_by_material = list + ` where material = ?`
 	list_by_ecampus  = list + ` where ecampus = ?`
 	list_by_catmat   = list + ` where catmat = ?`
 	list_by_siads    = list + ` where siads = ?`
+	list_by_lot      = list + ` where lot = ?`
 
-	get     = list + ` where uuid = ?`
-	history = `select version, material, amount, unit_cost, expires, created from Items_History_View where uuid = ?`
+	get = list + ` where uuid = ?`
 
-	create_true = `insert into Items_true (uuid, version, material, amount, unit_cost, expires, created) values (?, ?, ?, ?, ?, ?, ?)`
-	create_surf = `insert into Items (uuid, version, created) values (?, ?, ?)`
-	update_surf = `update Items set version = ? where uuid = ?`
+	create = `insert into Items (uuid, material, lot, available, unit_cost, expires, created, updated) values (?, ?, ?, ?, ?, ?, ?, ?)`
 
-	delete_true = `delete from Items_true where uuid = ?`
-	delete_surf = `delete from Items where uuid = ?`
+	update = `update Items set amount = ?, updated = ? where uuid = ?`
+	patch  = `update Items set unit_cost = coalesce(?, unit_cost), expires = coalesce(?, expires), updated = ? where uuid = ?`
+
+	delete = `delete from Items where uuid = ?`
 )
