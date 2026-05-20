@@ -41,7 +41,7 @@ type (
 		SIADS     int
 		Unit      string
 		Lot       uuid.UUID
-		Available float64
+		Available int64
 		UnitCost  money.Money
 		Expires   time.Time
 		Created   time.Time
@@ -54,7 +54,7 @@ type (
 		UUID      uuid.UUID
 		Material  uuid.UUID
 		Lot       uuid.UUID
-		Available float64
+		Available int64
 		UnitCost  money.Money
 		Expires   time.Time
 		Created   time.Time
@@ -62,7 +62,7 @@ type (
 	}
 
 	UpdateEntity struct {
-		Amount  float64
+		Amount  int64
 		Updated time.Time
 	}
 

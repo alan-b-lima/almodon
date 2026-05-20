@@ -11,7 +11,7 @@ const (
 	ExpiresWarnThreshold = 30 * 24 * time.Hour
 )
 
-func ProcessAmount(amount float64) (float64, error) {
+func ProcessAmount(amount int64) (int64, error) {
 	if amount < 0 {
 		return 0, ErrAmountNegative
 	}

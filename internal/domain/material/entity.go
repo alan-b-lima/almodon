@@ -44,7 +44,7 @@ func ProcessUnit(unit string) (string, error) {
 	return unit, nil
 }
 
-func StatusAvailable(amount, min float64) Stock {
+func StatusAvailable(amount, min int64) Stock {
 	switch {
 	case min <= 0:
 		return StockFine
@@ -55,7 +55,7 @@ func StatusAvailable(amount, min float64) Stock {
 	return StockFine
 }
 
-func ProcessMin(quantity float64) (float64, error) {
+func ProcessMin(quantity int64) (int64, error) {
 	if quantity < 0 {
 		return 0, ErrMinNegative
 	}

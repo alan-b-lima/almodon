@@ -30,7 +30,7 @@ type (
 	Create struct {
 		Material uuid.UUID   `json:"material"`
 		Lot      uuid.UUID   `json:"lot"`
-		Original float64     `json:"original"`
+		Original int64       `json:"original"`
 		UnitCost money.Money `json:"unit_cost"`
 		Expires  time.Time   `json:"expires"`
 	}
@@ -51,7 +51,7 @@ type (
 		SIADS       int         `json:"siads"`
 		Unit        string      `json:"unit"`
 		Lot         uuid.UUID   `json:"lot"`
-		Available   float64     `json:"available"`
+		Available   int64       `json:"available"`
 		UnitCost    money.Money `json:"unit_cost"`
 		Expires     time.Time   `json:"expires"`
 		ExpiresFlag Expiration  `json:"expires_flag"`

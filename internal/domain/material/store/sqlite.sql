@@ -6,7 +6,7 @@ create table if not exists `Materials` (
 	`siads`    integer  not null,
 	`descript` text     not null,
 	`unit`     text     not null,
-	`min`      real     not null,
+	`min`      int      not null,
 	`created`  datetime not null,
 	`updated`  datetime not null
 );

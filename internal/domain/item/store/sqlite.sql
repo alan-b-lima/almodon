@@ -2,7 +2,7 @@ create table if not exists `Items` (
 	`uuid`      blob     not null primary key,
 	`material`  blob     not null,
 	`lot`       blob     not null,
-	`available` real     not null,
+	`available` int      not null,
 	`unit_cost` int      not null,
 	`expires`   datetime not null,
 	`created`   datetime not null,

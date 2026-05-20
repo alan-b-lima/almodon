@@ -33,7 +33,7 @@ type (
 		SIADS    int
 		Descript string
 		Unit     string
-		Min      float64
+		Min      int64
 		Created  time.Time
 		Updated  time.Time
 	}
@@ -46,7 +46,7 @@ type (
 		SIADS    int
 		Descript string
 		Unit     string
-		Min      float64
+		Min      int64
 		Created  time.Time
 		Updated  time.Time
 	}
@@ -58,7 +58,7 @@ type (
 		SIADS    opt.Opt[int]
 		Descript opt.Opt[string]
 		Unit     opt.Opt[string]
-		Min      opt.Opt[float64]
+		Min      opt.Opt[int64]
 		Updated  time.Time
 	}
 )

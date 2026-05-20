@@ -31,7 +31,7 @@ type (
 		SIADS    int     `json:"siads"`
 		Descript string  `json:"description"`
 		Unit     string  `json:"unit"`
-		Min      float64 `json:"min"`
+		Min      int64 `json:"min"`
 	}
 
 	Patch struct {
@@ -41,7 +41,7 @@ type (
 		SIADS    opt.Opt[int]     `json:"siads"`
 		Descript opt.Opt[string]  `json:"description"`
 		Unit     opt.Opt[string]  `json:"unit"`
-		Min      opt.Opt[float64] `json:"min"`
+		Min      opt.Opt[int64] `json:"min"`
 	}
 )
 
@@ -54,7 +54,7 @@ type (
 		SIADS    int       `json:"siads"`
 		Descript string    `json:"description"`
 		Unit     string    `json:"unit"`
-		Min      float64   `json:"min"`
+		Min      int64   `json:"min"`
 		Created  time.Time `json:"created"`
 		Updated  time.Time `json:"updated"`
 	}
