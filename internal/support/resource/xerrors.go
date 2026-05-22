@@ -13,5 +13,5 @@ var (
 
 	ErrJSON = problem.Imp(problem.Malformed, "json-error").Message("unexpected error ocurred while processing json")
 
-	ErrResourceNotFound = problem.Imp(problem.NotFound, "resource-not-found").Format("resource %+q not found")
+	ErrNotFound = problem.Imp(problem.NotFound, "resource-not-found").Format("resource %s not found")
 )
