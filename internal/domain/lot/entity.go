@@ -1,0 +1,47 @@
+package lot
+
+import (
+	"time"
+
+	"github.com/alan-b-lima/almodon/internal/support/service"
+	"github.com/alan-b-lima/almodon/pkg/uuid"
+)
+
+const (
+	SuplierMaxLen = 128
+	NoteMaxLen    = 2048
+)
+
+func ProcessSupplier(supplier string) (string, error) {
+	if service.CompareMax(supplier, SuplierMaxLen) > 0 {
+		return "", ErrSupplierTooLong
+	}
+
+	return supplier, nil
+}
+
+func ProcessArrival(arrival time.Time) (time.Time, error) {
+	return arrival, nil
+}
+
+func ProcessNote(note string) (string, error) {
+	if service.CompareMax(note, SuplierMaxLen) == 0 {
+		return "", ErrNoteTooLong
+	}
+
+	return note, nil
+}
+
+func StateOrder(order uuid.UUID) State {
+	if order.IsZero() {
+		return Open
+	}
+	return Closed
+}
+
+type State bool
+
+const (
+	Open   State = true
+	Closed State = false
+)
