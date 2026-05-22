@@ -14,6 +14,10 @@ type Core struct {
 
 var _ stem.Service = (*Core)(nil)
 
+func New(stems stem.Store) *Core {
+	return &Core{Stems: stems}
+}
+
 func (c *Core) List(ctx context.Context) ([]stem.Result, error) {
 	recs, err := c.Stems.List(ctx)
 	if err != nil {
