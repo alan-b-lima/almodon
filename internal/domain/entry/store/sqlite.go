@@ -59,8 +59,8 @@ func (s *SQLDB) Get(ctx context.Context, order uuid.UUID, item uuid.UUID) (entry
 	return rec, nil
 }
 
-func (s *SQLDB) Create(ctx context.Context, ent entry.Entity) error {
-	_, err := s.db.ExecContext(ctx, create, ent.Order, ent.Item, ent.Amount)
+func (s *SQLDB) Create(ctx context.Context, order uuid.UUID, ent entry.Entity) error {
+	_, err := s.db.ExecContext(ctx, create, order, ent.Item, ent.Amount)
 	if err != nil {
 		return store.ErrQuery.Cause(err).Make()
 	}
@@ -88,6 +88,25 @@ func (s *SQLDB) Delete(ctx context.Context, order uuid.UUID, item uuid.UUID) err
 	}
 
 	return nil
+}
+
+func (s *SQLDB) Tx() store.DBTx {
+	return s.db
+}
+
+func (s *SQLDB) RunTx(ctx context.Context, proc func(entry.Store) error) error {
+	return store.WithTx(ctx, s.db, func(tx store.DBTx) error {
+		return proc(&SQLDB{db: tx})
+	})
+}
+
+func (s *SQLDB) JoinTx(other store.Store) (entry.Store, error) {
+	tx, err := store.JoinTx(other, s.db)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SQLDB{db: tx}, nil
 }
 
 func scan(row store.Scanner) (entry.Record, error) {
