@@ -19,6 +19,8 @@ type Service interface {
 	Patch(context.Context, uuid.UUID, Patch) error
 
 	Delete(context.Context, uuid.UUID) error
+
+	Modify(context.Context, uuid.UUID, func(context.Context, Store) error) error
 }
 
 type (

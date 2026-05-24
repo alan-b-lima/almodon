@@ -87,20 +87,28 @@ func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req lot.Patch) error {
 
 	ent.Updated = time.Now()
 
-	return c.Lots.Patch(ctx, uuid, ent)
+	return c.Modify(ctx, uuid, func(ctx context.Context, lots lot.Store) error {
+		return lots.Patch(ctx, uuid, ent)
+	})
 }
 
 func (c *Core) Delete(ctx context.Context, uuid uuid.UUID) error {
-	return c.Lots.RunTx(ctx, func(c lot.Store) error {
-		rec, err := c.Get(ctx, uuid)
+	return c.Modify(ctx, uuid, func(ctx context.Context, lots lot.Store) error {
+		return lots.Delete(ctx, uuid)
+	})
+}
+
+func (c *Core) Modify(ctx context.Context, uuid uuid.UUID, proc func(context.Context, lot.Store) error) error {
+	return c.Lots.RunTx(ctx, func(lots lot.Store) error {
+		rec, err := lots.Get(ctx, uuid)
 		if err != nil {
 			return err
 		}
 
 		if !rec.Order.IsZero() {
-			return lot.ErrDeleteSigned
+			return lot.ErrModifySigned
 		}
 
-		return c.Delete(ctx, uuid)
+		return proc(ctx, lots)
 	})
 }

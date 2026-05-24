@@ -10,5 +10,5 @@ var (
 	ErrSupplierTooLong = problem.New(problem.SemanticalError, "lot-supplier-too-long", "supplier is too long", nil, nil)
 	ErrNoteTooLong     = problem.New(problem.SemanticalError, "lot-note-too-long", "note is too long", nil, nil)
 
-	ErrDeleteSigned = problem.New(problem.Unauthorized, "lot-delete-signed", "cannot delete signed lot", nil, nil)
+	ErrModifySigned = problem.New(problem.Unauthorized, "lot-modify-signed", "cannot modify signed lot", nil, nil)
 )
