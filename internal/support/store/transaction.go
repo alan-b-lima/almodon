@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/alan-b-lima/almodon/internal/support"
 	"github.com/alan-b-lima/pkg/problem"
 )
 
@@ -37,7 +38,11 @@ type txconn struct {
 func WithTx(ctx context.Context, dbtx DBTx, proc func(DBTx) error) error {
 	db, ok := dbtx.(*sql.DB)
 	if !ok {
-		return ErrNestedTx
+		if tx, ok := dbtx.(*txconn); ok {
+			return proc(tx)
+		}
+
+		return support.ErrUnreacheable
 	}
 
 	tx, err := db.BeginTx(ctx, nil)
