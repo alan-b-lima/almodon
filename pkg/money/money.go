@@ -15,6 +15,10 @@ func FromFloat(amount float64) Money {
 	return Money(math.Round(amount * 100))
 }
 
+func FromCents(cents int64) Money {
+	return Money(cents)
+}
+
 func (m Money) Cents() int64 {
 	return int64(m)
 }
