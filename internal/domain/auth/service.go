@@ -17,9 +17,6 @@ type Service interface {
 
 type Authenticator interface {
 	Actor(ctx context.Context, session session.Token) (Actor, error)
-}
-
-type Signer interface {
 	Sign(ctx context.Context, user uuid.UUID, password string) error
 }
 

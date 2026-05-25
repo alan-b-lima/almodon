@@ -29,7 +29,7 @@ func (c *Core) Login(ctx context.Context, siape string, password string) (auth.R
 		return auth.Result{}, err
 	}
 
-	if err := c.Users.Auth(ctx, res.UUID, password); err != nil {
+	if err := c.Sign(ctx, res.UUID, password); err != nil {
 		return auth.Result{}, auth.ErrUnauthenticated.Cause(err).Make()
 	}
 
