@@ -2,28 +2,28 @@ package service
 
 import "unicode/utf8"
 
-func StringLenMin(s string, min int) int {
+func StringLenMin(s string, min int) bool {
 	if len(s) < min {
-		return -1
+		return false
 	}
 
 	if utf8.RuneCountInString(s) < min {
-		return -1
+		return false
 	}
 
-	return 0
+	return true
 }
 
-func StringLenMax(s string, max int) int {
+func StringLenMax(s string, max int) bool {
 	if len(s)/utf8.MaxRune > max {
-		return 1
+		return false
 	}
 
 	if utf8.RuneCountInString(s) > max {
-		return 1
+		return false
 	}
 
-	return 0
+	return true
 }
 
 func StringLenBetween(s string, min, max int) int {
