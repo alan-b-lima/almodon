@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/alan-b-lima/almodon/internal/domain/auth"
 	"github.com/alan-b-lima/almodon/internal/domain/user"
 	"github.com/alan-b-lima/almodon/internal/support"
 	"github.com/alan-b-lima/almodon/internal/support/service"
@@ -104,37 +105,38 @@ func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req user.Patch) error 
 
 	rec.Updated = time.Now()
 
-	return c.Users.RunTx(ctx, func(c user.Store) error {
-		if err := c.Patch(ctx, uuid, rec); err != nil {
-			return err
-		}
-
-		count, err := c.CountChiefs(ctx)
-		if err != nil {
-			return err
-		}
-
-		if count <= 0 {
-			return user.ErrNotEnoughChiefs
-		}
-		return nil
-	})
+	return c.Users.Patch(ctx, uuid, rec)
 }
 
 func (c *Core) Delete(ctx context.Context, uuid uuid.UUID) error {
 	return c.Users.RunTx(ctx, func(c user.Store) error {
+		rec, err := c.Get(ctx, uuid)
+		if err != nil {
+			if err == user.ErrNotFound {
+				return nil
+			}
+			return err
+		}
+
+		if rec.SIAPE == user.Root {
+			return user.ErrDeleteRootUser
+		}
+
 		if err := c.Delete(ctx, uuid); err != nil {
 			return err
 		}
 
-		count, err := c.CountChiefs(ctx)
-		if err != nil {
-			return err
+		if rec.Role == auth.Chief {
+			count, err := c.CountChiefs(ctx)
+			if err != nil {
+				return err
+			}
+
+			if count <= 0 {
+				return user.ErrNotEnoughChiefs
+			}
 		}
 
-		if count <= 0 {
-			return user.ErrNotEnoughChiefs
-		}
 		return nil
 	})
 }

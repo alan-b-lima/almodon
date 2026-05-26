@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/alan-b-lima/almodon/internal/domain/auth"
+	"github.com/alan-b-lima/almodon/internal/support/service"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -26,6 +27,8 @@ var (
 	accept_roles = [...]auth.Role{auth.User, auth.Admin, auth.Chief, auth.Maintainer}
 )
 
+const Root = "0000000"
+
 func ProcessSIAPE(siape string) (string, error) {
 	if !re_siape.MatchString(siape) {
 		return "", ErrSiapeInvalid
@@ -41,11 +44,7 @@ func ProcessName(name string) (string, error) {
 		return "", ErrNameEmpty
 	}
 
-	if len(name)/utf8.UTFMax > NameMaxLen {
-		return "", ErrNameTooLong
-	}
-
-	if utf8.RuneCountInString(name) > NameMaxLen {
+	if service.StringLenMax(name, NameMaxLen) {
 		return "", ErrNameTooLong
 	}
 
@@ -103,7 +102,7 @@ func ComparePassword(hash []byte, password string) error {
 
 func ProcessRole(role auth.Role) (auth.Role, error) {
 	if !slices.Contains(accept_roles[:], role) {
-		return 0, ErrRoleInvalid
+		return 0, ErrRoleNotAccepted
 	}
 
 	return role, nil
