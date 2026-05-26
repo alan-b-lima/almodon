@@ -84,7 +84,7 @@ func (c *Core) Delete(ctx context.Context, uuid uuid.UUID) error {
 			return err
 		}
 
-		if !rec.Bloom.IsZero() {
+		if !rec.Bloom.IsNil() {
 			return stem.ErrDeleteNonSprout
 		}
 

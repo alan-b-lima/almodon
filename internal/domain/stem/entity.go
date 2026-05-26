@@ -3,6 +3,8 @@ package stem
 import (
 	"strings"
 	"unicode"
+
+	"github.com/alan-b-lima/almodon/internal/support/service"
 )
 
 const (
@@ -13,11 +15,11 @@ const (
 func ProcessName(title string) (string, error) {
 	title = strings.TrimSpace(title)
 
-	if len(title) < NameMinLen {
+	if !service.StringLenMin(title, NameMinLen) {
 		return "", ErrTitleTooShort
 	}
 
-	if len(title) > NameMaxLen {
+	if !service.StringLenMax(title, NameMaxLen) {
 		return "", ErrTitleTooLong
 	}
 

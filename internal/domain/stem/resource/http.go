@@ -26,7 +26,6 @@ func New(stems stem.Service) *Resource {
 		"POST /stems/{$}":          rc.Create,
 		"PUT /stems/rename/{uuid}": rc.Rename,
 		"DELETE /stems/{uuid}":     rc.Delete,
-		"/":                        resource.NotFound,
 	}
 
 	for route, handler := range routes {
