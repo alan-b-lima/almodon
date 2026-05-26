@@ -14,10 +14,6 @@ type Store interface {
 
 	Create(ctx context.Context, order uuid.UUID, ent Entity) error
 
-	Update(ctx context.Context, order uuid.UUID, item uuid.UUID, amount int64) error
-
-	Delete(ctx context.Context, order uuid.UUID, item uuid.UUID) error
-
 	RunTx(context.Context, func(Store) error) error
 	JoinTx(store.Store) (Store, error)
 }

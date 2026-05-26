@@ -24,70 +24,20 @@ func New(db *sql.DB) *SQLDB {
 }
 
 func (s *SQLDB) List(ctx context.Context, order uuid.UUID) ([]entry.Record, error) {
-	rows, err := s.db.QueryContext(ctx, list, order)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var res []entry.Record
-	for rows.Next() {
-		rec, err := scan(rows)
-		if err != nil {
-			return nil, store.ErrQuery.Cause(err).Make()
-		}
-
-		res = append(res, rec)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, store.ErrQuery.Cause(err).Make()
-	}
-
-	return res, nil
+	return store.List(ctx, s.db, scan, list, order)
 }
 
 func (s *SQLDB) Get(ctx context.Context, order uuid.UUID, item uuid.UUID) (entry.Record, error) {
-	rec, err := scan(s.db.QueryRowContext(ctx, get, order, item))
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return entry.Record{}, entry.ErrNotFound
-		}
-
-		return entry.Record{}, store.ErrQuery.Cause(err).Make()
+	rec, err := store.Get(ctx, s.db, scan, get, order, item)
+	if err == store.ErrEmpty {
+		return entry.Record{}, entry.ErrNotFound
 	}
 
-	return rec, nil
+	return rec, err
 }
 
 func (s *SQLDB) Create(ctx context.Context, order uuid.UUID, ent entry.Entity) error {
-	_, err := s.db.ExecContext(ctx, create, order, ent.Item, ent.Amount)
-	if err != nil {
-		return store.ErrQuery.Cause(err).Make()
-	}
-
-	return nil
-}
-
-func (s *SQLDB) Update(ctx context.Context, order uuid.UUID, item uuid.UUID, amount int64) error {
-	res, err := s.db.ExecContext(ctx, update, amount, order, item)
-	if err != nil {
-		return store.ErrQuery.Cause(err).Make()
-	}
-
-	if count, err := res.RowsAffected(); err == nil && count == 0 {
-		return entry.ErrNotFound
-	}
-
-	return nil
-}
-
-func (s *SQLDB) Delete(ctx context.Context, order uuid.UUID, item uuid.UUID) error {
-	_, err := s.db.ExecContext(ctx, delete, order, item)
-	if err != nil {
-		return store.ErrQuery.Cause(err).Make()
-	}
-
-	return nil
+	return store.Create(ctx, s.db, create, order, ent.Item, ent.Amount)
 }
 
 func (s *SQLDB) Tx() store.DBTx {
@@ -127,6 +77,4 @@ const (
 	get  = "select `order`, `item`, `amount` from Entries where `order` = ? and `item` = ?"
 
 	create = "insert into Entries (`order`, `item`, `amount`) values (?, ?, ?)"
-	update = "update Entries set `amount` = ? where `order` = ? and `item` = ?"
-	delete = "delete from Entries where `order` = ? and `item` = ?"
 )
