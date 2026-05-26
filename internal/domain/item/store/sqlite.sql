@@ -2,6 +2,7 @@ create table if not exists `Items` (
 	`uuid`      blob     not null primary key,
 	`material`  blob     not null,
 	`lot`       blob     not null,
+	`effective` boolean  not null default false,
 	`available` int      not null,
 	`unit_cost` int      not null,
 	`expires`   datetime not null,
@@ -11,6 +12,8 @@ create table if not exists `Items` (
 	foreign key (`material`) references `Material`(`uuid`),
 	foreign key (`lot`) references `Lot`(`uuid`)
 );
+
+create index if not exists `Items_effective` on `Items`(`effective`);
 
 create view if not exists `Items_View` as
 	select
@@ -29,4 +32,6 @@ create view if not exists `Items_View` as
 		i.`updated`
 	from
 		`Items` i
-		join `Materials` m on i.`material` = m.`uuid`;
+		join `Materials` m on i.`material` = m.`uuid`
+	where
+		i.`effective` = true;

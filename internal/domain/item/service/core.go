@@ -126,6 +126,13 @@ func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req item.Patch) error 
 	return c.Items.Patch(ctx, uuid, rec)
 }
 
+func (c *Core) Effective(ctx context.Context, lot uuid.UUID) error {
+	return c.Items.Effective(ctx, item.EffectiveLot{
+		Lot:     lot,
+		Updated: time.Now(),
+	})
+}
+
 func (c *Core) Delete(ctx context.Context, uuid uuid.UUID) error {
 	return c.Items.Delete(ctx, uuid)
 }

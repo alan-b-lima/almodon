@@ -24,82 +24,44 @@ func New(db *sql.DB) *SQLDB {
 }
 
 func (s *SQLDB) List(ctx context.Context) ([]item.Record, error) {
-	rows, err := s.db.QueryContext(ctx, list)
-	if err != nil {
-		return nil, store.ErrQuery.Cause(err).Make()
-	}
-	defer rows.Close()
-
-	return scan_list(rows)
+	return store.List(ctx, s.db, scan, list)
 }
 
-func (s *SQLDB) ListByMaterial(ctx context.Context, uuid uuid.UUID) ([]item.Record, error) {
-	rows, err := s.db.QueryContext(ctx, list_by_material, uuid)
-	if err != nil {
-		return nil, store.ErrQuery.Cause(err).Make()
-	}
-	defer rows.Close()
-
-	return scan_list(rows)
+func (s *SQLDB) ListByMaterial(ctx context.Context, material uuid.UUID) ([]item.Record, error) {
+	return store.List(ctx, s.db, scan, list_by_material, material)
 }
 
 func (s *SQLDB) ListByECampus(ctx context.Context, ecampus int) ([]item.Record, error) {
-	rows, err := s.db.QueryContext(ctx, list_by_ecampus, ecampus)
-	if err != nil {
-		return nil, store.ErrQuery.Cause(err).Make()
-	}
-	defer rows.Close()
-
-	return scan_list(rows)
+	return store.List(ctx, s.db, scan, list_by_ecampus, ecampus)
 }
 
 func (s *SQLDB) ListByCATMAT(ctx context.Context, catmat int) ([]item.Record, error) {
-	rows, err := s.db.QueryContext(ctx, list_by_catmat, catmat)
-	if err != nil {
-		return nil, store.ErrQuery.Cause(err).Make()
-	}
-	defer rows.Close()
-
-	return scan_list(rows)
+	return store.List(ctx, s.db, scan, list_by_catmat, catmat)
 }
 
 func (s *SQLDB) ListBySIADS(ctx context.Context, siads int) ([]item.Record, error) {
-	rows, err := s.db.QueryContext(ctx, list_by_siads, siads)
-	if err != nil {
-		return nil, store.ErrQuery.Cause(err).Make()
-	}
-	defer rows.Close()
-
-	return scan_list(rows)
+	return store.List(ctx, s.db, scan, list_by_siads, siads)
 }
 
 func (s *SQLDB) ListByLot(ctx context.Context, lot uuid.UUID) ([]item.Record, error) {
-	rows, err := s.db.QueryContext(ctx, list_by_lot, lot)
-	if err != nil {
-		return nil, store.ErrQuery.Cause(err).Make()
-	}
-	defer rows.Close()
-
-	return scan_list(rows)
+	return store.List(ctx, s.db, scan, list_by_lot, lot)
 }
 
 func (s *SQLDB) Get(ctx context.Context, uuid uuid.UUID) (item.Record, error) {
-	row := s.db.QueryRowContext(ctx, get, uuid)
-
-	ent, err := scan(row)
+	rec, err := store.Get(ctx, s.db, scan, get, uuid)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return item.Record{}, item.ErrNotFound
 		}
 
-		return item.Record{}, store.ErrQuery.Cause(err).Make()
+		return item.Record{}, err
 	}
 
-	return ent, nil
+	return rec, nil
 }
 
 func (s *SQLDB) Create(ctx context.Context, ent item.Entity) error {
-	_, err := s.db.ExecContext(ctx, create,
+	return store.Create(ctx, s.db, create,
 		ent.UUID,
 		ent.Material,
 		ent.Lot,
@@ -109,51 +71,22 @@ func (s *SQLDB) Create(ctx context.Context, ent item.Entity) error {
 		ent.Created,
 		ent.Updated,
 	)
-	if err != nil {
-		return store.ErrExec.Cause(err).Make()
-	}
-
-	return nil
 }
 
 func (s *SQLDB) Update(ctx context.Context, uuid uuid.UUID, ent item.UpdateEntity) error {
-	res, err := s.db.ExecContext(ctx, update, ent.Amount, ent.Updated, uuid)
-	if err != nil {
-		return store.ErrExec.Cause(err).Make()
-	}
-
-	if count, err := res.RowsAffected(); err == nil && count == 0 {
-		return item.ErrNotFound
-	}
-
-	return nil
+	return store.Update(ctx, s.db, update, ent.Amount, ent.Updated, uuid)
 }
 
 func (s *SQLDB) Patch(ctx context.Context, uuid uuid.UUID, ent item.PatchEntity) error {
-	res, err := s.db.ExecContext(ctx, patch,
-		ent.UnitCost,
-		ent.Expires,
-		ent.Updated,
-		uuid,
-	)
-	if err != nil {
-		return store.ErrExec.Cause(err).Make()
-	}
+	return store.Update(ctx, s.db, patch, ent.UnitCost, ent.Expires, ent.Updated, uuid)
+}
 
-	if count, err := res.RowsAffected(); err == nil && count == 0 {
-		return item.ErrNotFound
-	}
-
-	return nil
+func (s *SQLDB) Effective(ctx context.Context, ent item.EffectiveLot) error {
+	return store.Update(ctx, s.db, effective, ent.Updated, ent.Lot)
 }
 
 func (s *SQLDB) Delete(ctx context.Context, uuid uuid.UUID) error {
-	_, err := s.db.ExecContext(ctx, delete, uuid)
-	if err != nil {
-		return store.ErrExec.Cause(err).Make()
-	}
-
-	return nil
+	return store.Delete(ctx, s.db, delete, uuid)
 }
 
 func (s *SQLDB) Tx() store.DBTx {
@@ -198,23 +131,6 @@ func scan(scanner store.Scanner) (item.Record, error) {
 	return rec, nil
 }
 
-func scan_list(rows *sql.Rows) ([]item.Record, error) {
-	var recs []item.Record
-	for rows.Next() {
-		rec, err := scan(rows)
-		if err != nil {
-			return nil, store.ErrQuery.Cause(err).Make()
-		}
-
-		recs = append(recs, rec)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, store.ErrQuery.Cause(err).Make()
-	}
-
-	return recs, nil
-}
-
 const (
 	list             = `select uuid, material, name, ecampus, catmat, siads, unit, lot, available, unit_cost, expires, created, updated from Items_View`
 	list_by_material = list + ` where material = ?`
@@ -227,8 +143,9 @@ const (
 
 	create = `insert into Items (uuid, material, lot, available, unit_cost, expires, created, updated) values (?, ?, ?, ?, ?, ?, ?, ?)`
 
-	update = `update Items set amount = ?, updated = ? where uuid = ?`
-	patch  = `update Items set unit_cost = coalesce(?, unit_cost), expires = coalesce(?, expires), updated = ? where uuid = ?`
+	update    = `update Items set amount = ?, updated = ? where uuid = ?`
+	patch     = `update Items set unit_cost = coalesce(?, unit_cost), expires = coalesce(?, expires), updated = ? where uuid = ?`
+	effective = `update Items set effective = true, updated = ? where lot = ?`
 
 	delete = `delete from Items where uuid = ?`
 )

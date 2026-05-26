@@ -24,6 +24,7 @@ type Store interface {
 
 	Update(context.Context, uuid.UUID, UpdateEntity) error
 	Patch(context.Context, uuid.UUID, PatchEntity) error
+	Effective(context.Context, EffectiveLot) error
 
 	Delete(context.Context, uuid.UUID) error
 
@@ -70,5 +71,10 @@ type (
 		UnitCost opt.Opt[money.Money]
 		Expires  opt.Opt[time.Time]
 		Updated  time.Time
+	}
+
+	EffectiveLot struct {
+		Lot     uuid.UUID
+		Updated time.Time
 	}
 )

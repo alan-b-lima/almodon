@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/alan-b-lima/almodon/internal/domain/auth"
+	"github.com/alan-b-lima/almodon/internal/domain/auth/perms"
 	"github.com/alan-b-lima/almodon/internal/domain/item"
 	"github.com/alan-b-lima/almodon/internal/support/service"
 
@@ -22,13 +23,8 @@ func NewGate(service item.Service, gate auth.Authenticator) item.Service {
 	}
 }
 
-var (
-	perm_admin = auth.Allow(auth.Admin)
-	perm_user  = auth.Allow(auth.User)
-)
-
 func (c *Gate) List(ctx context.Context) ([]item.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockRead)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +33,7 @@ func (c *Gate) List(ctx context.Context) ([]item.Result, error) {
 }
 
 func (c *Gate) ListByMaterial(ctx context.Context, material uuid.UUID) ([]item.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockRead)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +42,7 @@ func (c *Gate) ListByMaterial(ctx context.Context, material uuid.UUID) ([]item.R
 }
 
 func (c *Gate) ListByECampus(ctx context.Context, ecampus int) ([]item.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockRead)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +51,7 @@ func (c *Gate) ListByECampus(ctx context.Context, ecampus int) ([]item.Result, e
 }
 
 func (c *Gate) ListByCATMAT(ctx context.Context, catmat int) ([]item.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockRead)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +60,7 @@ func (c *Gate) ListByCATMAT(ctx context.Context, catmat int) ([]item.Result, err
 }
 
 func (c *Gate) ListBySIADS(ctx context.Context, siads int) ([]item.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockRead)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +69,7 @@ func (c *Gate) ListBySIADS(ctx context.Context, siads int) ([]item.Result, error
 }
 
 func (c *Gate) ListByLot(ctx context.Context, lot uuid.UUID) ([]item.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockRead)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +78,7 @@ func (c *Gate) ListByLot(ctx context.Context, lot uuid.UUID) ([]item.Result, err
 }
 
 func (c *Gate) Get(ctx context.Context, uuid uuid.UUID) (item.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_user)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockRead)
 	if err != nil {
 		return item.Result{}, err
 	}
@@ -91,7 +87,7 @@ func (c *Gate) Get(ctx context.Context, uuid uuid.UUID) (item.Result, error) {
 }
 
 func (c *Gate) Create(ctx context.Context, req item.Create) (item.CreateResult, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockMgmt)
 	if err != nil {
 		return item.CreateResult{}, err
 	}
@@ -100,7 +96,7 @@ func (c *Gate) Create(ctx context.Context, req item.Create) (item.CreateResult, 
 }
 
 func (c *Gate) Patch(ctx context.Context, uuid uuid.UUID, req item.Patch) error {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockMgmt)
 	if err != nil {
 		return err
 	}
@@ -108,8 +104,12 @@ func (c *Gate) Patch(ctx context.Context, uuid uuid.UUID, req item.Patch) error 
 	return c.Service.Patch(ctx, uuid, req)
 }
 
+func (c *Gate) Effective(ctx context.Context, lot uuid.UUID) error {
+	return auth.ErrBlocked
+}
+
 func (c *Gate) Delete(ctx context.Context, uuid uuid.UUID) error {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perm_admin)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockMgmt)
 	if err != nil {
 		return err
 	}

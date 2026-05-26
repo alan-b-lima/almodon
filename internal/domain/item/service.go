@@ -22,6 +22,7 @@ type Service interface {
 	Create(context.Context, Create) (CreateResult, error)
 
 	Patch(context.Context, uuid.UUID, Patch) error
+	Effective(context.Context, uuid.UUID) error
 
 	Delete(context.Context, uuid.UUID) error
 }
