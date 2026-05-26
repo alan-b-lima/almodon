@@ -23,7 +23,7 @@ func NewGate(service lotitem.Service, gate auth.Authenticator) lotitem.Service {
 }
 
 func (c *Gate) List(ctx context.Context, lot uuid.UUID) ([]lotitem.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockRead)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockMgmt)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func (c *Gate) List(ctx context.Context, lot uuid.UUID) ([]lotitem.Result, error
 }
 
 func (c *Gate) Get(ctx context.Context, uuid uuid.UUID) (lotitem.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockRead)
+	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockMgmt)
 	if err != nil {
 		return lotitem.Result{}, err
 	}

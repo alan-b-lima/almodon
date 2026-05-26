@@ -12,7 +12,7 @@ import (
 
 type Core struct {
 	Items lotitem.Store
-	Lots  lot.Service
+	Lots  lot.Store
 }
 
 var _ lotitem.Service = (*Core)(nil)
@@ -55,15 +55,19 @@ func (c *Core) Create(ctx context.Context, req lotitem.Create) (lotitem.CreateRe
 	ent.Created = now
 	ent.Updated = now
 
-	err := c.Lots.Modify(ctx, req.Lot, func(ctx context.Context, lots lot.Store) error {
-		items, err := c.Items.JoinTx(lots)
+	err := c.Items.RunTx(ctx, func(items lotitem.Store) error {
+		lots, err := c.Lots.JoinTx(items)
 		if err != nil {
 			return err
 		}
 
-		return items.Create(ctx, ent)
+		if err := items.Create(ctx, ent); err != nil {
+			return err
+		}
+
+		return lots.Mutable(ctx, req.Lot)
 	})
-	return lotitem.CreateResult{ent.UUID}, err
+	return lotitem.CreateResult{UUID: ent.UUID}, err
 }
 
 func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req lotitem.Patch) error {
@@ -79,13 +83,17 @@ func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req lotitem.Patch) err
 		return err
 	}
 
-	return c.Lots.Modify(ctx, rec.Lot, func(ctx context.Context, lots lot.Store) error {
-		items, err := c.Items.JoinTx(lots)
+	return c.Items.RunTx(ctx, func(items lotitem.Store) error {
+		lots, err := c.Lots.JoinTx(items)
 		if err != nil {
 			return err
 		}
 
-		return items.Patch(ctx, uuid, ent)
+		if err := items.Patch(ctx, uuid, ent); err != nil {
+			return err
+		}
+
+		return lots.Mutable(ctx, rec.Lot)
 	})
 }
 
@@ -95,12 +103,16 @@ func (c *Core) Delete(ctx context.Context, uuid uuid.UUID) error {
 		return err
 	}
 
-	return c.Lots.Modify(ctx, rec.Lot, func(ctx context.Context, lots lot.Store) error {
-		items, err := c.Items.JoinTx(lots)
+	return c.Items.RunTx(ctx, func(items lotitem.Store) error {
+		lots, err := c.Lots.JoinTx(items)
 		if err != nil {
 			return err
 		}
 
-		return items.Delete(ctx, uuid)
+		if err := items.Delete(ctx, uuid); err != nil {
+			return err
+		}
+
+		return lots.Mutable(ctx, rec.Lot)
 	})
 }
