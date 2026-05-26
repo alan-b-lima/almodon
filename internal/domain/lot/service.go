@@ -19,13 +19,12 @@ type Service interface {
 	Patch(context.Context, uuid.UUID, Patch) error
 
 	Delete(context.Context, uuid.UUID) error
-
-	Modify(context.Context, uuid.UUID, func(context.Context, Store) error) error
 }
 
 type (
 	Create struct {
 		Supplier string    `json:"suplier"`
+		Author   uuid.UUID `json:"-"`
 		Arrival  time.Time `json:"arrival"`
 		Note     string    `json:"note"`
 	}
@@ -41,7 +40,9 @@ type (
 	Result struct {
 		UUID     uuid.UUID `json:"uuid"`
 		Order    uuid.UUID `json:"order"`
+		State    State     `json:"state"`
 		Supplier string    `json:"suplier"`
+		Author   uuid.UUID `json:"author"`
 		Arrival  time.Time `json:"arrival"`
 		Note     string    `json:"note"`
 		Created  time.Time `json:"created"`

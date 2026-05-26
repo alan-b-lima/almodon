@@ -5,13 +5,15 @@ import (
 	"time"
 
 	"github.com/alan-b-lima/almodon/internal/domain/lot"
+	"github.com/alan-b-lima/almodon/internal/domain/lotitem"
 	"github.com/alan-b-lima/almodon/internal/support/service"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
 	"github.com/alan-b-lima/pkg/problem"
 )
 
 type Core struct {
-	Lots lot.Store
+	Lots  lot.Store
+	Items lotitem.Service
 }
 
 var _ lot.Service = (*Core)(nil)
@@ -28,7 +30,7 @@ func (c *Core) List(ctx context.Context) ([]lot.Result, error) {
 
 	res := make([]lot.Result, 0, len(recs))
 	for _, rec := range recs {
-		res = append(res, lot.Result(rec))
+		res = append(res, translate(&rec))
 	}
 
 	return res, nil
@@ -42,7 +44,7 @@ func (c *Core) ListByState(ctx context.Context, state lot.State) ([]lot.Result, 
 
 	res := make([]lot.Result, 0, len(recs))
 	for _, rec := range recs {
-		res = append(res, lot.Result(rec))
+		res = append(res, translate(&rec))
 	}
 
 	return res, nil
@@ -54,11 +56,11 @@ func (c *Core) Get(ctx context.Context, uuid uuid.UUID) (lot.Result, error) {
 		return lot.Result{}, err
 	}
 
-	return lot.Result(rec), nil
+	return translate(&rec), nil
 }
 
 func (c *Core) Create(ctx context.Context, req lot.Create) (lot.CreateResult, error) {
-	var ent lot.Entity
+	ent := lot.Entity{Author: req.Author}
 	if err := problem.Join(
 		service.Set(&ent.Supplier, req.Supplier, lot.ProcessSupplier),
 		service.Set(&ent.Arrival, req.Arrival, lot.ProcessArrival),
@@ -72,7 +74,7 @@ func (c *Core) Create(ctx context.Context, req lot.Create) (lot.CreateResult, er
 	ent.Created = now
 	ent.Updated = now
 
-	return lot.CreateResult{ent.UUID}, c.Lots.Create(ctx, ent)
+	return lot.CreateResult{UUID: ent.UUID}, c.Lots.Create(ctx, ent)
 }
 
 func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req lot.Patch) error {
@@ -87,28 +89,35 @@ func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req lot.Patch) error {
 
 	ent.Updated = time.Now()
 
-	return c.Modify(ctx, uuid, func(ctx context.Context, lots lot.Store) error {
-		return lots.Patch(ctx, uuid, ent)
+	return c.Lots.RunTx(ctx, func(c lot.Store) error {
+		if err := c.Patch(ctx, uuid, ent); err != nil {
+			return err
+		}
+
+		return c.Mutable(ctx, uuid)
 	})
 }
 
 func (c *Core) Delete(ctx context.Context, uuid uuid.UUID) error {
-	return c.Modify(ctx, uuid, func(ctx context.Context, lots lot.Store) error {
-		return lots.Delete(ctx, uuid)
-	})
-}
-
-func (c *Core) Modify(ctx context.Context, uuid uuid.UUID, proc func(context.Context, lot.Store) error) error {
-	return c.Lots.RunTx(ctx, func(lots lot.Store) error {
-		rec, err := lots.Get(ctx, uuid)
-		if err != nil {
+	return c.Lots.RunTx(ctx, func(c lot.Store) error {
+		if err := c.Delete(ctx, uuid); err != nil {
 			return err
 		}
 
-		if !rec.Order.IsZero() {
-			return lot.ErrModifySigned
-		}
-
-		return proc(ctx, lots)
+		return c.Mutable(ctx, uuid)
 	})
+}
+
+func translate(rec *lot.Record) lot.Result {
+	return lot.Result{
+		UUID:     rec.UUID,
+		Order:    rec.Order,
+		State:    lot.StatusState(rec.Order),
+		Supplier: rec.Supplier,
+		Author:   rec.Author,
+		Arrival:  rec.Arrival,
+		Note:     rec.Note,
+		Created:  rec.Created,
+		Updated:  rec.Updated,
+	}
 }

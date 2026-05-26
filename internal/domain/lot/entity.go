@@ -13,7 +13,7 @@ const (
 )
 
 func ProcessSupplier(supplier string) (string, error) {
-	if service.CompareMax(supplier, SuplierMaxLen) > 0 {
+	if !service.StringLenMax(supplier, SuplierMaxLen) {
 		return "", ErrSupplierTooLong
 	}
 
@@ -25,17 +25,18 @@ func ProcessArrival(arrival time.Time) (time.Time, error) {
 }
 
 func ProcessNote(note string) (string, error) {
-	if service.CompareMax(note, SuplierMaxLen) == 0 {
+	if !service.StringLenMax(note, SuplierMaxLen) {
 		return "", ErrNoteTooLong
 	}
 
 	return note, nil
 }
 
-func StateOrder(order uuid.UUID) State {
-	if order.IsZero() {
+func StatusState(order uuid.UUID) State {
+	if order.IsNil() {
 		return Open
 	}
+
 	return Closed
 }
 

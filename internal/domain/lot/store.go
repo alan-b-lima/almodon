@@ -18,9 +18,11 @@ type Store interface {
 	Create(context.Context, Entity) error
 
 	Patch(context.Context, uuid.UUID, PatchEntity) error
-	Sign(context.Context, uuid.UUID, uuid.UUID) error
+	Sign(context.Context, uuid.UUID, SignEntity) error
 
 	Delete(context.Context, uuid.UUID) error
+
+	Mutable(context.Context, uuid.UUID) error
 
 	RunTx(context.Context, func(Store) error) error
 	JoinTx(store.Store) (Store, error)
@@ -31,6 +33,7 @@ type (
 		UUID     uuid.UUID
 		Order    uuid.UUID
 		Supplier string
+		Author   uuid.UUID
 		Arrival  time.Time
 		Note     string
 		Created  time.Time
@@ -42,6 +45,7 @@ type (
 	Entity struct {
 		UUID     uuid.UUID
 		Supplier string
+		Author   uuid.UUID
 		Arrival  time.Time
 		Note     string
 		Created  time.Time
@@ -53,5 +57,10 @@ type (
 		Arrival  opt.Opt[time.Time]
 		Note     opt.Opt[string]
 		Updated  time.Time
+	}
+
+	SignEntity struct {
+		Order   uuid.UUID
+		Updated time.Time
 	}
 )

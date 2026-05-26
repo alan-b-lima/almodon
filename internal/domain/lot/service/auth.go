@@ -50,10 +50,12 @@ func (c *Gate) Get(ctx context.Context, uuid uuid.UUID) (lot.Result, error) {
 }
 
 func (c *Gate) Create(ctx context.Context, req lot.Create) (lot.CreateResult, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockMgmt)
+	ctx, actor, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockMgmt)
 	if err != nil {
 		return lot.CreateResult{}, err
 	}
+
+	req.Author = actor.User
 
 	return c.Service.Create(ctx, req)
 }
@@ -74,4 +76,8 @@ func (c *Gate) Delete(ctx context.Context, uuid uuid.UUID) error {
 	}
 
 	return c.Service.Delete(ctx, uuid)
+}
+
+func (c *Gate) Modify(context.Context, uuid.UUID, func(context.Context, lot.Store) error) error {
+	return auth.ErrBlocked
 }
