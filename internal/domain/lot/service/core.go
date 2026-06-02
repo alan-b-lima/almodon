@@ -5,15 +5,13 @@ import (
 	"time"
 
 	"github.com/alan-b-lima/almodon/internal/domain/lot"
-	"github.com/alan-b-lima/almodon/internal/domain/lotitem"
 	"github.com/alan-b-lima/almodon/internal/support/service"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
 	"github.com/alan-b-lima/pkg/problem"
 )
 
 type Core struct {
-	Lots  lot.Store
-	Items lotitem.Service
+	Lots lot.Store
 }
 
 var _ lot.Service = (*Core)(nil)
@@ -89,23 +87,11 @@ func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req lot.Patch) error {
 
 	ent.Updated = time.Now()
 
-	return c.Lots.RunTx(ctx, func(c lot.Store) error {
-		if err := c.Patch(ctx, uuid, ent); err != nil {
-			return err
-		}
-
-		return c.Mutable(ctx, uuid)
-	})
+	return c.Lots.Patch(ctx, uuid, ent)
 }
 
 func (c *Core) Delete(ctx context.Context, uuid uuid.UUID) error {
-	return c.Lots.RunTx(ctx, func(c lot.Store) error {
-		if err := c.Delete(ctx, uuid); err != nil {
-			return err
-		}
-
-		return c.Mutable(ctx, uuid)
-	})
+	return c.Lots.Delete(ctx, uuid)
 }
 
 func translate(rec *lot.Record) lot.Result {

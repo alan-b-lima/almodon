@@ -22,8 +22,6 @@ type Store interface {
 
 	Delete(context.Context, uuid.UUID) error
 
-	Mutable(context.Context, uuid.UUID) error
-
 	RunTx(context.Context, func(Store) error) error
 	JoinTx(store.Store) (Store, error)
 }
