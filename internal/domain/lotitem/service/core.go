@@ -4,15 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/alan-b-lima/almodon/internal/domain/lot"
 	"github.com/alan-b-lima/almodon/internal/domain/lotitem"
+	"github.com/alan-b-lima/almodon/internal/support/service"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
 	"github.com/alan-b-lima/pkg/problem"
 )
 
 type Core struct {
 	Items lotitem.Store
-	Lots  lot.Store
 }
 
 var _ lotitem.Service = (*Core)(nil)
@@ -45,8 +44,16 @@ func (c *Core) Get(ctx context.Context, uuid uuid.UUID) (lotitem.Result, error) 
 }
 
 func (c *Core) Create(ctx context.Context, req lotitem.Create) (lotitem.CreateResult, error) {
-	var ent lotitem.Entity
-	if err := problem.Join(); err != nil {
+	ent := lotitem.Entity{
+		Lot:      req.Lot,
+		Material: req.Material,
+	}
+
+	if err := problem.Join(
+		service.Set(&ent.Amount, req.Amount, lotitem.ProcessAmount),
+		service.Set(&ent.UnitCost, req.UnitCost, lotitem.ProcessUnitCost),
+		service.Set(&ent.Expires, req.Expires, lotitem.ProcessExpires),
+	); err != nil {
 		return lotitem.CreateResult{}, lotitem.ErrCreate.Cause(err).Make()
 	}
 
@@ -55,64 +62,24 @@ func (c *Core) Create(ctx context.Context, req lotitem.Create) (lotitem.CreateRe
 	ent.Created = now
 	ent.Updated = now
 
-	err := c.Items.RunTx(ctx, func(items lotitem.Store) error {
-		lots, err := c.Lots.JoinTx(items)
-		if err != nil {
-			return err
-		}
-
-		if err := items.Create(ctx, ent); err != nil {
-			return err
-		}
-
-		return lots.Mutable(ctx, req.Lot)
-	})
-	return lotitem.CreateResult{UUID: ent.UUID}, err
+	return lotitem.CreateResult{UUID: ent.UUID}, c.Items.Create(ctx, ent)
 }
 
 func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req lotitem.Patch) error {
-	var ent lotitem.PatchEntity
-	if err := problem.Join(); err != nil {
+	ent := lotitem.PatchEntity{Material: req.Material}
+	if err := problem.Join(
+		service.SetOpt(&ent.Amount, req.Amount, lotitem.ProcessAmount),
+		service.SetOpt(&ent.UnitCost, req.UnitCost, lotitem.ProcessUnitCost),
+		service.SetOpt(&ent.Expires, req.Expires, lotitem.ProcessExpires),
+	); err != nil {
 		return lotitem.ErrUpdate.Cause(err).Make()
 	}
 
 	ent.Updated = time.Now()
 
-	rec, err := c.Items.Get(ctx, uuid)
-	if err != nil {
-		return err
-	}
-
-	return c.Items.RunTx(ctx, func(items lotitem.Store) error {
-		lots, err := c.Lots.JoinTx(items)
-		if err != nil {
-			return err
-		}
-
-		if err := items.Patch(ctx, uuid, ent); err != nil {
-			return err
-		}
-
-		return lots.Mutable(ctx, rec.Lot)
-	})
+	return c.Items.Patch(ctx, uuid, ent)
 }
 
 func (c *Core) Delete(ctx context.Context, uuid uuid.UUID) error {
-	rec, err := c.Items.Get(ctx, uuid)
-	if err != nil {
-		return err
-	}
-
-	return c.Items.RunTx(ctx, func(items lotitem.Store) error {
-		lots, err := c.Lots.JoinTx(items)
-		if err != nil {
-			return err
-		}
-
-		if err := items.Delete(ctx, uuid); err != nil {
-			return err
-		}
-
-		return lots.Mutable(ctx, rec.Lot)
-	})
+	return c.Items.Delete(ctx, uuid)
 }
