@@ -17,101 +17,63 @@ type SQLDB struct {
 	db store.DBTx
 }
 
+func New(db *sql.DB) *SQLDB {
+	return &SQLDB{db: db}
+}
+
 var _ stem.Store = (*SQLDB)(nil)
 
 func (s *SQLDB) List(ctx context.Context) ([]stem.Record, error) {
-	rows, err := s.db.QueryContext(ctx, list)
-	if err != nil {
-		return nil, store.ErrQuery.Cause(err).Make()
-	}
-	defer rows.Close()
-
-	var recs []stem.Record
-	for rows.Next() {
-		rec, err := scan(rows)
-		if err != nil {
-			return nil, store.ErrQuery.Cause(err).Make()
-		}
-
-		recs = append(recs, rec)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, store.ErrQuery.Cause(err).Make()
-	}
-
-	return recs, nil
+	return store.List(ctx, s.db, scan, list)
 }
 
 func (s *SQLDB) Get(ctx context.Context, uuid uuid.UUID) (stem.Record, error) {
-	row := s.db.QueryRowContext(ctx, get)
-
-	rec, err := scan(row)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return stem.Record{}, stem.ErrNotFound
-		}
-
-		return stem.Record{}, store.ErrQuery.Cause(err).Make()
+	rec, err := store.Get(ctx, s.db, scan, get)
+	if err == store.ErrEmpty {
+		return stem.Record{}, stem.ErrNotFound
 	}
 
 	return rec, nil
 }
 
 func (s *SQLDB) GetByName(ctx context.Context, name string) (stem.Record, error) {
-	row := s.db.QueryRowContext(ctx, get_by_name, name)
-
-	rec, err := scan(row)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return stem.Record{}, stem.ErrNotFound
-		}
-
-		return stem.Record{}, store.ErrQuery.Cause(err).Make()
+	rec, err := store.Get(ctx, s.db, scan, get_by_name, name)
+	if err == store.ErrEmpty {
+		return stem.Record{}, stem.ErrNotFound
 	}
 
 	return rec, nil
 }
 
 func (s *SQLDB) Create(ctx context.Context, ent stem.Entity) error {
-	if _, err := s.db.ExecContext(ctx, create, ent.UUID, nil, ent.Name, ent.Created); err != nil {
-		return store.ErrExec.Cause(err).Make()
-	}
-
-	return nil
+	return store.Create(ctx, s.db, create,
+		ent.UUID,
+		nil,
+		ent.Name,
+		ent.Created,
+	)
 }
 
 func (s *SQLDB) Rename(ctx context.Context, uuid uuid.UUID, title string) error {
-	res, err := s.db.ExecContext(ctx, rename, title, uuid)
-	if err != nil {
-		return store.ErrExec.Cause(err).Make()
-	}
-
-	if count, err := res.RowsAffected(); err == nil && count == 0 {
+	err := store.Update(ctx, s.db, rename, title, uuid)
+	if err == store.ErrEmpty {
 		return stem.ErrNotFound
 	}
 
-	return nil
+	return err
 }
 
 func (s *SQLDB) Upgrade(ctx context.Context, uuid uuid.UUID, order uuid.UUID) error {
-	res, err := s.db.ExecContext(ctx, upgrade, order, uuid)
-	if err != nil {
-		return store.ErrExec.Cause(err).Make()
-	}
-
-	if count, err := res.RowsAffected(); err == nil && count == 0 {
+	err := store.Update(ctx, s.db, upgrade, order, uuid)
+	if err == store.ErrEmpty {
 		return stem.ErrNotFound
 	}
 
-	return nil
+	return err
 }
 
 func (s *SQLDB) Delete(ctx context.Context, uuid uuid.UUID) error {
-	if _, err := s.db.ExecContext(ctx, delete, uuid); err != nil {
-		return store.ErrExec.Cause(err).Make()
-	}
-
-	return nil
+	return store.Delete(ctx, s.db, delete, uuid)
 }
 
 func (s *SQLDB) Tx() store.DBTx {
@@ -135,7 +97,14 @@ func (s *SQLDB) JoinTx(other store.Store) (stem.Store, error) {
 
 func scan(rows store.Scanner) (stem.Record, error) {
 	var rec stem.Record
-	if err := rows.Scan(&rec.UUID, &rec.Bloom, &rec.Name, &rec.Version, &rec.Created, &rec.Updated); err != nil {
+	if err := rows.Scan(
+		&rec.UUID,
+		&rec.Bloom,
+		&rec.Name,
+		&rec.Version,
+		&rec.Created,
+		&rec.Updated,
+	); err != nil {
 		return stem.Record{}, err
 	}
 
