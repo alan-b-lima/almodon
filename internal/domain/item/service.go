@@ -20,9 +20,9 @@ type Service interface {
 	Get(context.Context, uuid.UUID) (Result, error)
 
 	Create(context.Context, Create) (CreateResult, error)
+	CreateMany(context.Context, []Create) error
 
 	Patch(context.Context, uuid.UUID, Patch) error
-	Effective(context.Context, uuid.UUID) error
 
 	Delete(context.Context, uuid.UUID) error
 }

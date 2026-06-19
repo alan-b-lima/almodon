@@ -29,10 +29,8 @@ func New(items item.Service) *Resource {
 		"GET /items/catmat/{catmat}":     rc.ListByCATMAT,
 		"GET /items/siads/{siads}":       rc.ListBySIADS,
 		"GET /items/{uuid}":              rc.Get,
-		"POST /items/{$}":                rc.Create,
 		"PATCH /items/{uuid}":            rc.Patch,
 		"DELETE /items/{uuid}":           rc.Delete,
-		"/":                              resource.NotFound,
 	}
 
 	for route, handler := range routes {
@@ -99,10 +97,6 @@ func (rc *Resource) Get(w http.ResponseWriter, r *http.Request) {
 
 		return rc.Items.Get(ctx, uuid)
 	}, w, r)
-}
-
-func (rc *Resource) Create(w http.ResponseWriter, r *http.Request) {
-	resource.PostHandler(r.Context(), rc.Items.Create, w, r)
 }
 
 func (rc *Resource) Patch(w http.ResponseWriter, r *http.Request) {

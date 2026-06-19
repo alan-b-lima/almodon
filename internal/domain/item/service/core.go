@@ -88,27 +88,59 @@ func (c *Core) Get(ctx context.Context, id uuid.UUID) (item.Result, error) {
 }
 
 func (c *Core) Create(ctx context.Context, req item.Create) (item.CreateResult, error) {
-	rec := item.Entity{
+	ent, err := process(req)
+	if err != nil {
+		return item.CreateResult{}, err
+	}
+
+	return item.CreateResult{UUID: ent.UUID}, c.Items.Create(ctx, ent)
+}
+
+func (c *Core) CreateMany(ctx context.Context, reqs []item.Create) error {
+	ents := make([]item.Entity, 0, len(reqs))
+
+	for _, req := range reqs {
+		ent, err := process(req)
+		if err != nil {
+			return err
+		}
+
+		ents = append(ents, ent)
+	}
+
+	// TODO: add intrinsic for multi-insertion
+	return c.Items.RunTx(ctx, func(c item.Store) error {
+		for _, ent := range ents {
+			if err := c.Create(ctx, ent); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func process(req item.Create) (item.Entity, error) {
+	ent := item.Entity{
 		Material: req.Material,
 		Lot:      req.Lot,
 	}
 
 	err := problem.Join(
-		service.Set(&rec.Available, req.Original, item.ProcessAmount),
-		service.Set(&rec.UnitCost, req.UnitCost, item.ProcessUnitCost),
-		service.Set(&rec.Expires, req.Expires, item.ProcessExpires),
+		service.Set(&ent.Available, req.Original, item.ProcessAmount),
+		service.Set(&ent.UnitCost, req.UnitCost, item.ProcessUnitCost),
+		service.Set(&ent.Expires, req.Expires, item.ProcessExpires),
 	)
 	if err != nil {
-		return item.CreateResult{}, item.ErrCreate.Cause(err).Make()
+		return item.Entity{}, item.ErrCreate.Cause(err).Make()
 	}
 
 	now := time.Now()
 
-	rec.UUID = uuid.NewUUIDv7()
-	rec.Created = now
-	rec.Updated = now
+	ent.UUID = uuid.NewUUIDv7()
+	ent.Created = now
+	ent.Updated = now
 
-	return item.CreateResult{UUID: rec.UUID}, c.Items.Create(ctx, rec)
+	return ent, nil
 }
 
 func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req item.Patch) error {
@@ -124,13 +156,6 @@ func (c *Core) Patch(ctx context.Context, uuid uuid.UUID, req item.Patch) error 
 	rec.Updated = time.Now()
 
 	return c.Items.Patch(ctx, uuid, rec)
-}
-
-func (c *Core) Effective(ctx context.Context, lot uuid.UUID) error {
-	return c.Items.Effective(ctx, item.EffectiveLot{
-		Lot:     lot,
-		Updated: time.Now(),
-	})
 }
 
 func (c *Core) Delete(ctx context.Context, uuid uuid.UUID) error {
