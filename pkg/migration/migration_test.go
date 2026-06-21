@@ -17,7 +17,12 @@ func TestMigration(t *testing.T) {
 		{
 			Prev: map[string]string{"a.go": "Hello, World"},
 			Next: map[string]string{"a.go": "Hello, World"},
-			Want: Equal,
+			Want: Identical,
+		},
+		{
+			Prev: map[string]string{"a.go": "Hello, World", "b.go": "Hello, World"},
+			Next: map[string]string{"b.go": "Hello, World", "a.go": "Hello, World"},
+			Want: Identical,
 		},
 		{
 			Prev: map[string]string{"a.go": "Hello, World"},

@@ -19,35 +19,39 @@ type Hash [32]byte
 type Rel uint8
 
 const (
-	Equal Rel = iota
+	Identical Rel = iota
 	Upgradable
 	Incompatible
 )
 
 // New creates a new migration from the given sources. The migration's hash is
 // computed from the sources' names and contents, and its scripts are the
-// hashes of the sources' contents, sorted in ascending order.
+// hashes of the sources' contents, sorted in ascending order. As of the Go
+// spec, this algorithm does not depend on the order of iteration of the
+// given sources' map.
 //
 // Migrations created from the same input are semantically and deeply equal,
 // although not comparable by Go semantics. See [Migration.Compare] for more
 // advanced usage.
 func New(sources map[string]string) *Migration {
 	scripts := make([]Hash, 0, len(sources))
-	h := sha512.New512_256()
 
 	for name, source := range sources {
-		hs := hmac.New(sha512.New512_256, []byte(name))
-		hs.Write([]byte(source))
+		h := hmac.New(sha512.New512_256, []byte(name))
+		h.Write([]byte(source))
 
-		script := Hash(hs.Sum(nil))
+		script := Hash(h.Sum(nil))
 		scripts = append(scripts, script)
-
-		h.Write(script[:])
 	}
 
 	slices.SortFunc(scripts, func(a, b Hash) int {
 		return bytes.Compare(a[:], b[:])
 	})
+
+	h := sha512.New512_256()
+	for _, hash := range scripts {
+		h.Write(hash[:])
+	}
 
 	return &Migration{
 		hash:    Hash(h.Sum(nil)),
@@ -74,8 +78,8 @@ func (m *Migration) IsValid() bool {
 // Compare compares whether migrations are the same, a proper subset of one
 // another or incompatible.
 //
-// Migrations are the same if, and only if, they have the same hash. [Equal] is
-// returned.
+// Migrations are the same if, and only if, they have the same hash.
+// [Identical] is returned.
 //
 // A previous migration is a proper subset of the next if all scripts in the
 // previous migration are present in the next and they have the same hash. In
@@ -85,7 +89,7 @@ func (m *Migration) IsValid() bool {
 // Otherwise, they are incompatible, and [Incompatible] is returned.
 func (prev *Migration) Compare(next *Migration) Rel {
 	if prev.hash == next.hash {
-		return Equal
+		return Identical
 	}
 
 	if len(prev.scripts) >= len(next.scripts) {
@@ -105,7 +109,7 @@ func (prev *Migration) Compare(next *Migration) Rel {
 			i-- // effectively advance only the next's script.
 
 		case -1:
-			// if a smaller script is found in the next migration, then the
+			// if a greater script is found in the next migration, then the
 			// current prev's script is missing.
 			return Incompatible
 		}
@@ -126,7 +130,7 @@ func (h Hash) String() string {
 }
 
 var rels = [...]string{
-	Equal:        "equal",
+	Identical:    "identical",
 	Upgradable:   "upgradable",
 	Incompatible: "incompatible",
 }

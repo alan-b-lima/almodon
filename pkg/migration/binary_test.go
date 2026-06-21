@@ -41,7 +41,7 @@ func FuzzInversabilityOfBinaryEncoding(f *testing.F) {
 			t.Error(err)
 		}
 
-		if cmp := mIn.Compare(&mOut); cmp != Equal {
+		if cmp := mIn.Compare(&mOut); cmp != Identical {
 			t.Errorf("expected to be equal, got %v", cmp)
 		}
 	})
