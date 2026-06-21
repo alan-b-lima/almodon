@@ -9,19 +9,13 @@ import (
 )
 
 type Store interface {
-	List(ctx context.Context) ([]Record, error)
-
-	Get(ctx context.Context, uuid uuid.UUID) (Record, error)
-	GetByName(ctx context.Context, name string) (Record, error)
+	Get(ctx context.Context) (Record, error)
 
 	Create(ctx context.Context, ent Entity) error
 
-	Rename(ctx context.Context, uuid uuid.UUID, name string) error
-	Upgrade(ctx context.Context, stem uuid.UUID, order uuid.UUID) error
+	Upgrade(ctx context.Context, order uuid.UUID) error
 
-	Delete(ctx context.Context, uuid uuid.UUID) error
-
-	RunTx(ctx context.Context, proc func(Store) error) error
+	RunTx(ctx context.Context, proc func(context.Context, Store) error) error
 	JoinTx(store store.Store) (Store, error)
 }
 
@@ -29,7 +23,6 @@ type (
 	Record struct {
 		UUID    uuid.UUID
 		Bloom   uuid.UUID
-		Name    string
 		Version int
 		Created time.Time
 		Updated time.Time
@@ -39,7 +32,6 @@ type (
 type (
 	Entity struct {
 		UUID    uuid.UUID
-		Name    string
 		Created time.Time
 	}
 )

@@ -23,11 +23,7 @@ func New(db *sql.DB) *SQLDB {
 
 var _ stem.Store = (*SQLDB)(nil)
 
-func (s *SQLDB) List(ctx context.Context) ([]stem.Record, error) {
-	return store.List(ctx, s.db, scan, list)
-}
-
-func (s *SQLDB) Get(ctx context.Context, uuid uuid.UUID) (stem.Record, error) {
+func (s *SQLDB) Get(ctx context.Context) (stem.Record, error) {
 	rec, err := store.Get(ctx, s.db, scan, get)
 	if err == store.ErrEmpty {
 		return stem.Record{}, stem.ErrNotFound
@@ -36,26 +32,12 @@ func (s *SQLDB) Get(ctx context.Context, uuid uuid.UUID) (stem.Record, error) {
 	return rec, nil
 }
 
-func (s *SQLDB) GetByName(ctx context.Context, name string) (stem.Record, error) {
-	rec, err := store.Get(ctx, s.db, scan, get_by_name, name)
-	if err == store.ErrEmpty {
-		return stem.Record{}, stem.ErrNotFound
-	}
-
-	return rec, nil
-}
-
 func (s *SQLDB) Create(ctx context.Context, ent stem.Entity) error {
-	return store.Create(ctx, s.db, create,
-		ent.UUID,
-		nil,
-		ent.Name,
-		ent.Created,
-	)
+	return store.Create(ctx, s.db, create, ent.UUID, nil, ent.Created)
 }
 
-func (s *SQLDB) Rename(ctx context.Context, uuid uuid.UUID, title string) error {
-	err := store.Update(ctx, s.db, rename, title, uuid)
+func (s *SQLDB) Upgrade(ctx context.Context, order uuid.UUID) error {
+	err := store.Update(ctx, s.db, upgrade, order)
 	if err == store.ErrEmpty {
 		return stem.ErrNotFound
 	}
@@ -63,26 +45,17 @@ func (s *SQLDB) Rename(ctx context.Context, uuid uuid.UUID, title string) error 
 	return err
 }
 
-func (s *SQLDB) Upgrade(ctx context.Context, uuid uuid.UUID, order uuid.UUID) error {
-	err := store.Update(ctx, s.db, upgrade, order, uuid)
-	if err == store.ErrEmpty {
-		return stem.ErrNotFound
-	}
-
-	return err
-}
-
-func (s *SQLDB) Delete(ctx context.Context, uuid uuid.UUID) error {
-	return store.Delete(ctx, s.db, delete, uuid)
+func (s *SQLDB) Delete(ctx context.Context) error {
+	return store.Delete(ctx, s.db, delete)
 }
 
 func (s *SQLDB) Tx() store.DBTx {
 	return s.db
 }
 
-func (s *SQLDB) RunTx(ctx context.Context, proc func(stem.Store) error) error {
+func (s *SQLDB) RunTx(ctx context.Context, proc func(context.Context, stem.Store) error) error {
 	return store.WithTx(ctx, s.db, func(tx store.DBTx) error {
-		return proc(&SQLDB{db: tx})
+		return proc(ctx, &SQLDB{db: tx})
 	})
 }
 
@@ -100,7 +73,6 @@ func scan(rows store.Scanner) (stem.Record, error) {
 	if err := rows.Scan(
 		&rec.UUID,
 		&rec.Bloom,
-		&rec.Name,
 		&rec.Version,
 		&rec.Created,
 		&rec.Updated,
@@ -112,14 +84,8 @@ func scan(rows store.Scanner) (stem.Record, error) {
 }
 
 const (
-	list        = `select uuid, bloom, name, version, created, updated from Stems_View`
-	get         = list + ` where uuid = ?`
-	get_by_name = list + ` where uuid = ?`
-
-	create = `insert into Stems (uuid, bloom, name, created) values (?, ?, ?, ?)`
-
-	rename  = `update Stems set name = ? where uuid = ?`
-	upgrade = `update Stems set bloom = ? where uuid = ?`
-
-	delete = `delete from Stems where uuid = ?`
+	get     = `select uuid, bloom, version, created, updated from Stem_View`
+	create  = `insert into Stem (uuid, bloom, created) values (?, ?, ?)`
+	upgrade = `update Stem set bloom = ?`
+	delete  = `delete from Stem where`
 )

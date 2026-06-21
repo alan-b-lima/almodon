@@ -11,67 +11,31 @@ import (
 )
 
 type Gate struct {
-	stem.Service
-	Gate auth.Authenticator
+	Service stem.Service
+	Gate    auth.Authenticator
 }
 
-func NewGate(service stem.Service, gate auth.Authenticator) stem.Service {
+func NewGate(service stem.Service, gate auth.Authenticator) *Gate {
 	return &Gate{
 		Service: service,
 		Gate:    gate,
 	}
 }
 
-func (c *Gate) List(ctx context.Context) ([]stem.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockChange)
-	if err != nil {
-		return nil, err
-	}
-
-	return c.Service.List(ctx)
-}
-
-func (c *Gate) Get(ctx context.Context, uuid uuid.UUID) (stem.Result, error) {
+func (c *Gate) Get(ctx context.Context) (stem.Result, error) {
 	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockChange)
 	if err != nil {
 		return stem.Result{}, err
 	}
 
-	return c.Service.Get(ctx, uuid)
+	return c.Service.Get(ctx)
 }
 
-func (c *Gate) GetByName(ctx context.Context, name string) (stem.Result, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockChange)
-	if err != nil {
-		return stem.Result{}, err
-	}
-
-	return c.Service.GetByName(ctx, name)
-}
-
-func (c *Gate) Create(ctx context.Context, req stem.Create) (stem.CreateResult, error) {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockChange)
-	if err != nil {
-		return stem.CreateResult{}, err
-	}
-
-	return c.Service.Create(ctx, req)
-}
-
-func (c *Gate) Rename(ctx context.Context, uuid uuid.UUID, req stem.Rename) error {
+func (c *Gate) Upgrade(ctx context.Context, order uuid.UUID) error {
 	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockChange)
 	if err != nil {
 		return err
 	}
 
-	return c.Service.Rename(ctx, uuid, req)
-}
-
-func (c *Gate) Delete(ctx context.Context, uuid uuid.UUID) error {
-	ctx, _, err := service.AuthorizeFromContext(ctx, c.Gate, perms.StockChange)
-	if err != nil {
-		return err
-	}
-
-	return c.Service.Delete(ctx, uuid)
+	return c.Service.Upgrade(ctx, order)
 }
