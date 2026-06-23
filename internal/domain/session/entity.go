@@ -1,33 +1,29 @@
 package session
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 	"time"
 )
 
 const (
-	MaxRenews = math.MaxInt
-	MaxAgeMax = 3 * 24 * time.Hour
+	IdleTimeout     = 30 * time.Minute
+	HardTimeout     = 24 * time.Hour
+	PasswordTimeout = 12 * time.Hour
 )
 
-func ProcessRenewed(renewed int) (int, error) {
-	renewed = max(renewed+1, 0)
-	if renewed > MaxRenews {
-		return 0, ErrUnrenewable
-	}
-
-	return renewed, nil
+func PasswordVerificationExpired(verifiedAt time.Time) bool {
+	return time.Now().After(verifiedAt.Add(PasswordTimeout))
 }
 
-func ProcessMaxAge(max_age time.Duration) (time.Time, error) {
-	if max_age > MaxAgeMax {
+func ProcessIdleTimeout(idle_timeout time.Duration) (time.Time, error) {
+	if idle_timeout > IdleTimeout {
 		return time.Time{}, ErrTooLong
 	}
 
-	expires := time.Now().Add(max_age)
+	expires := time.Now().Add(idle_timeout)
 	return expires, nil
 }
 
@@ -37,7 +33,7 @@ type Token [TokenLen]byte
 
 func NewToken() Token {
 	var token Token
-	read(token[:])
+	rand.Read(token[:])
 
 	return token
 }
@@ -89,4 +85,9 @@ func (t *Token) UnmarshalJSON(b []byte) error {
 
 	*t = token
 	return nil
+}
+
+func Expired(hard_deadline, idle_deadline time.Time) bool {
+	now := time.Now()
+	return hard_deadline.Before(now) || idle_deadline.Before(now)
 }

@@ -69,8 +69,8 @@ func (s *SQLDB) get(row *sql.Row) (session.Record, error) {
 	return rec, nil
 }
 
-func (s *SQLDB) Create(ctx context.Context, rec session.CreateRecord) error {
-	_, err := s.db.ExecContext(ctx, create, rec.Token.Bytes(), rec.User.Bytes(), rec.Renewed, rec.Expires, rec.Created)
+func (s *SQLDB) Create(ctx context.Context, rec session.Entity) error {
+	_, err := s.db.ExecContext(ctx, create, rec.Token.Bytes(), rec.User.Bytes(), rec.HardDeadline, rec.IdleDeadline, rec.PasswordVerified) // rec.renewd excluído e os demais adicionados.
 	if err != nil {
 		return store.ErrExec.Cause(err).Make()
 	}
@@ -78,8 +78,23 @@ func (s *SQLDB) Create(ctx context.Context, rec session.CreateRecord) error {
 	return nil
 }
 
-func (s *SQLDB) Update(ctx context.Context, token session.Token, rec session.UpdateRecord) error {
-	res, err := s.db.ExecContext(ctx, update, rec.Renewed, rec.Expires, token.Bytes())
+// Update att para UpdateActivity
+func (s *SQLDB) UpdateActivity(ctx context.Context, token session.Token, deadline time.Time) error {
+	res, err := s.db.ExecContext(ctx, update_idle, deadline, token.Bytes())
+	if err != nil {
+		return store.ErrExec.Cause(err).Make()
+	}
+
+	changed, err := res.RowsAffected()
+	if err == nil && changed == 0 {
+		return session.ErrNotFound
+	}
+
+	return nil
+}
+
+func (s *SQLDB) UpdatePasswordVerified(ctx context.Context, token session.Token, verifiedAt time.Time) error {
+	res, err := s.db.ExecContext(ctx, update_password_verified, verifiedAt, token.Bytes())
 	if err != nil {
 		return store.ErrExec.Cause(err).Make()
 	}
@@ -101,8 +116,18 @@ func (s *SQLDB) Delete(ctx context.Context, token session.Token) error {
 	return nil
 }
 
+// Método DeleteByUser adicionado
+func (s *SQLDB) DeleteByUser(ctx context.Context, user uuid.UUID) error {
+	_, err := s.db.ExecContext(ctx, delete_by_user, user.Bytes())
+	if err != nil {
+		return store.ErrExec.Cause(err).Make()
+	}
+
+	return nil
+}
+
 func (s *SQLDB) DeleteExpired(ctx context.Context, deadline time.Time) error {
-	_, err := s.db.ExecContext(ctx, delete_expired, deadline)
+	_, err := s.db.ExecContext(ctx, delete_expired, deadline, deadline)
 	if err != nil {
 		return store.ErrExec.Cause(err).Make()
 	}
@@ -122,9 +147,9 @@ func scan(ent *session.Record, scanner store.Scanner) error {
 	err := scanner.Scan(
 		&bytes1,
 		&bytes2,
-		&ent.Renewed,
-		&ent.Expires,
-		&ent.Created,
+		&ent.HardDeadline,
+		&ent.IdleDeadline,
+		&ent.PasswordVerified,
 	)
 	if err != nil {
 		return err
@@ -145,12 +170,14 @@ func token_from_bytes(bytes []byte) (session.Token, error) {
 }
 
 const (
-	list        = `select token, user, renewed, expires, created from Sessions`
+	list        = `select token, user, hard_deadline, idle_deadline, password_verified from Sessions`
 	get         = list + ` where token = ?`
 	get_by_user = list + ` where user = ?`
 
-	create         = `insert into Sessions (token, user, renewed, expires, created) values (?, ?, ?, ?, ?)`
-	update         = `update Sessions set renewed = ?, expires = ? where token = ?`
-	delete         = `delete from Sessions where token = ?`
-	delete_expired = `delete from Sessions where expires < ?`
+	create                   = `insert into Sessions (token, user, hard_deadline, idle_deadline, password_verified) values (?, ?, ?, ?, ?)`
+	update_idle              = `update Sessions set idle_deadline = ? where token = ?`
+	update_password_verified = `update Sessions set password_verified = ? where token = ?`
+	delete                   = `delete from Sessions where token = ?`
+	delete_by_user           = `delete from Sessions where user = ?`
+	delete_expired           = `delete from Sessions where hard_deadline < ? or idle_deadline < ?`
 )

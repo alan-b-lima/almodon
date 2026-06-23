@@ -11,31 +11,36 @@ import (
 
 // on malformed session token, clear the token and let the user proceed as unlogged.
 type Handler struct {
-	Handler http.Handler
+	Handler  http.Handler
+	Sessions session.Service
 }
 
-func Wrap(handler http.Handler) http.Handler {
+func Wrap(handler http.Handler, sessions session.Service) http.Handler {
 	return &Handler{
-		Handler: handler,
+		Handler:  handler,
+		Sessions: sessions,
 	}
 }
 
-func WrapFunc(handler http.HandlerFunc) http.Handler {
-	return Wrap(handler)
+func WrapFunc(handler http.HandlerFunc, sessions session.Service) http.Handler {
+	return Wrap(handler, sessions)
 }
 
 func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if c, err := Session(ctx, r); err != nil {
+	ctx, token, err := Session(ctx, r)
+	if err != nil {
 		if err != session.ErrInvalidToken {
 			resource.WriteError(w, err)
 			return
 		}
 
 		DeleteCookie(w)
-	} else {
-		ctx = c
+	} 
+
+	if token != (session.Token{}) {
+		s.Sessions.Update(ctx, token)
 	}
 
 	r = r.WithContext(ctx)
@@ -44,17 +49,17 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 const SessionIdentifier = "session"
 
-func Session(ctx context.Context, r *http.Request) (context.Context, error) {
-	session, err := Cookie(r)
+func Session(ctx context.Context, r *http.Request) (context.Context, session.Token, error) {
+	token, err := Cookie(r)
 	if err != nil {
 		if err == http.ErrNoCookie {
-			return ctx, nil
+			return ctx, token, nil
 		}
 
-		return nil, err
+		return nil, session.Token{}, err
 	}
 
-	return context.WithValue(ctx, "session", session), nil
+	return context.WithValue(ctx, "session", token), token, nil
 }
 
 func Cookie(r *http.Request) (session.Token, error) {

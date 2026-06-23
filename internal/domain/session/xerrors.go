@@ -8,6 +8,5 @@ var (
 	ErrNotFound = problem.New(problem.NotFound, "session-not-found", "session not found", nil, nil)
 
 	ErrInvalidToken = problem.Imp(problem.Malformed, "invalid-token").Format("token cannot be parsed into %d byte array").Make(TokenLen)
-	ErrUnrenewable  = problem.New(problem.SemanticalError, "session-renewed-exceeded", "session renewed too many times", nil, map[string]any{"max": MaxRenews})
-	ErrTooLong      = problem.New(problem.SemanticalError, "session-too-long", "session too long", nil, map[string]any{"max": MaxAgeMax})
+	ErrTooLong      = problem.New(problem.SemanticalError, "session-too-long", "session too long", nil, map[string]any{"hard": HardTimeout, "idle": IdleTimeout})
 )

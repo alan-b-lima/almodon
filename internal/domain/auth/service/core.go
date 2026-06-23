@@ -40,7 +40,7 @@ func (c *Core) Login(ctx context.Context, siape string, password string) (auth.R
 	return auth.Result{
 		Token:   sres.Token,
 		User:    sres.User,
-		Expires: sres.Expires,
+		Expires: sres.HardDeadline,
 	}, nil
 }
 
