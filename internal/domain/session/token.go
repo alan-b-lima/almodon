@@ -2,32 +2,60 @@ package session
 
 import (
 	"crypto/rand"
-	"sync"
+	"encoding/binary"
+	"encoding/hex"
+	"time"
 )
 
-var (
-	pool   [TokenLen * 256]byte
-	offset = len(pool)
+type Token [24]byte
 
-	mu sync.Mutex
-)
+const TokenLen = len(Token{})
 
-func read(p []byte) (int, error) {
-	mu.Lock()
-	defer mu.Unlock()
+func NewToken() Token {
+	var token Token
 
-	if len(p) > len(pool) {
-		return rand.Read(p)
+	nanos := time.Now().UnixNano()
+
+	binary.BigEndian.PutUint64(token[:8], uint64(nanos))
+	rand.Read(token[8:])
+
+	return token
+}
+
+func (t *Token) Bytes() []byte {
+	return t[:]
+}
+
+func (t Token) String() string {
+	b, _ := t.MarshalText()
+	return string(b)
+}
+
+func ParseString(str string) (Token, error) {
+	var t Token
+	err := t.UnmarshalJSON([]byte(str))
+	return t, err
+}
+
+func (t Token) AppendText(b []byte) ([]byte, error) {
+	return hex.AppendEncode(b, t[:]), nil
+}
+
+func (t Token) MarshalText() ([]byte, error) {
+	return t.AppendText(nil)
+}
+
+func (t *Token) UnmarshalJSON(b []byte) error {
+	if TokenLen != hex.DecodedLen(len(b)) {
+		return ErrInvalidToken
 	}
 
-	if len(pool[offset:]) < len(p) {
-		n := copy(pool[:], pool[offset:])
-		rand.Read(pool[n:])
-		offset = 0
+	var token Token
+	n, err := hex.Decode(token[:], b)
+	if err != nil || n != TokenLen {
+		return ErrInvalidToken
 	}
 
-	n := copy(p, pool[offset:])
-	offset += n
-
-	return n, nil
+	*t = token
+	return nil
 }
