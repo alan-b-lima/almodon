@@ -1,6 +1,7 @@
 package sessionserve
 
 import (
+	"cmp"
 	"context"
 	"time"
 
@@ -10,26 +11,61 @@ import (
 )
 
 type Core struct {
-	Sessions  session.Store
-	Scheduler *scheduler.Scheduler
+	sessions  session.Store
+	scheduler *scheduler.Scheduler
+
+	hard_deadline time.Duration
+	idle_deadline time.Duration
+	pure_get      bool
+}
+
+type Opts struct {
+	HardDeadline time.Duration
+	IdleDeadline time.Duration
+	PureGet      bool
 }
 
 var _ session.Service = (*Core)(nil)
 
-func New(sessions session.Store, scheduler *scheduler.Scheduler) *Core {
+func New(sessions session.Store, scheduler *scheduler.Scheduler, opts *Opts) *Core {
 	return &Core{
-		Sessions:  sessions,
-		Scheduler: scheduler,
+		sessions:      sessions,
+		scheduler:     scheduler,
+		hard_deadline: cmp.Or(opts.HardDeadline, session.DefaultHardTimeout),
+		idle_deadline: cmp.Or(opts.IdleDeadline, session.DefaultIdleTimeout),
+		pure_get:      opts.PureGet,
 	}
 }
 
 func (c *Core) Get(ctx context.Context, token session.Token) (session.Result, error) {
-	rec, err := c.Sessions.Get(ctx, token)
+	if c.pure_get {
+		return c.GetPure(ctx, token)
+	}
+
+	var res session.Result
+	err := c.sessions.RunTx(ctx, func(store session.Store) (err error) {
+		c := c.extend(store)
+
+		if res, err = c.GetPure(ctx, token); err != nil {
+			return err
+		}
+
+		return c.Update(ctx, token)
+	})
 	if err != nil {
 		return session.Result{}, err
 	}
 
-	if session.Expired(rec.HardDeadline, rec.IdleDeadline) {
+	return res, nil
+}
+
+func (c *Core) GetPure(ctx context.Context, token session.Token) (session.Result, error) {
+	rec, err := c.sessions.Get(ctx, token)
+	if err != nil {
+		return session.Result{}, err
+	}
+
+	if session.IsExpired(rec.HardDeadline, rec.IdleDeadline) {
 		return session.Result{}, session.ErrNotFound
 	}
 
@@ -37,22 +73,23 @@ func (c *Core) Get(ctx context.Context, token session.Token) (session.Result, er
 }
 
 func (c *Core) Create(ctx context.Context, req session.Create) (session.Result, error) {
+	now := time.Now()
+
 	rec := session.Entity{
 		Token:        session.NewToken(),
 		User:         req.User,
-		HardDeadline: time.Now().Add(session.HardTimeout),
-		IdleDeadline: time.Now().Add(session.IdleTimeout),
-		PasswordVerified: time.Now(), 
+		HardDeadline: now.Add(session.DefaultHardTimeout),
+		IdleDeadline: now.Add(session.DefaultIdleTimeout),
 	}
 
-	err := c.Sessions.RunTx(ctx, func(store session.Store) error {
+	err := c.sessions.RunTx(ctx, func(store session.Store) error {
 		err := store.DeleteByUser(ctx, rec.User)
 		if err != nil {
 			return err
 		}
+
 		return store.Create(ctx, rec)
 	})
-
 	if err != nil {
 		return session.Result{}, err
 	}
@@ -62,44 +99,28 @@ func (c *Core) Create(ctx context.Context, req session.Create) (session.Result, 
 	return session.Result(rec), nil
 }
 
-func (c *Core) ConfirmPassword(ctx context.Context, token session.Token) error {
-	if _, err := c.Get(ctx, token); err != nil {
-		return err
-	}
-
-	return c.Sessions.UpdatePasswordVerified(ctx, token, time.Now())
-}
-
 func (c *Core) Update(ctx context.Context, token session.Token) error {
-	rec, err := c.Sessions.Get(ctx, token)
-	if err != nil {
-		return err
-	}
-
-	if session.Expired(rec.HardDeadline, rec.IdleDeadline) {
-		return session.ErrNotFound
-	}
-
-	updateRec := time.Now().Add(session.IdleTimeout)
-
-	if err := c.Sessions.UpdateActivity(ctx, token, updateRec); err != nil {
-		return err
-	}
-
-	return nil
+	deadline := time.Now().Add(session.DefaultIdleTimeout)
+	return c.sessions.Update(ctx, token, deadline)
 }
 
 func (c *Core) Delete(ctx context.Context, token session.Token) error {
-	return c.Sessions.Delete(ctx, token)
+	return c.sessions.Delete(ctx, token)
+}
+
+func (c *Core) extend(store session.Store) *Core {
+	cc := *c
+	cc.sessions = store
+	return &cc
 }
 
 func (c *Core) Publish(ctx context.Context) error {
-	err := c.Sessions.DeleteExpired(ctx, time.Now())
+	err := c.sessions.DeleteExpired(ctx, time.Now())
 	if err != nil {
 		return err
 	}
 
-	recs, err := c.Sessions.List(ctx)
+	recs, err := c.sessions.List(ctx)
 	if err != nil {
 		return err
 	}
@@ -111,8 +132,8 @@ func (c *Core) Publish(ctx context.Context) error {
 	return nil
 }
 
-func (c *Core) scheduleCleanup(expiresAt time.Time) {
-	c.Scheduler.Post(func() {
-		_ = c.Sessions.DeleteExpired(context.Background(), expiresAt)
-	}, expiresAt)
+func (c *Core) scheduleCleanup(expires time.Time) {
+	c.scheduler.Post(func() {
+		_ = c.sessions.DeleteExpired(context.TODO(), expires)
+	}, expires)
 }

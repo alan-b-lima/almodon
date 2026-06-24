@@ -10,11 +10,22 @@ import (
 	"github.com/alan-b-lima/almodon/internal/support/service"
 	"github.com/alan-b-lima/almodon/internal/support/store"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
-	"github.com/alan-b-lima/pkg/problem"
 )
 
 //go:embed sqlite.sql
 var Script string
+
+const (
+	list = `select token, user, hard_deadline, idle_deadline from Sessions`
+	get  = list + ` where token = ?`
+
+	create = `insert into Sessions (token, user, hard_deadline, idle_deadline) values (?, ?, ?, ?, ?)`
+	update = `update Sessions set idle_deadline = ? where token = ?`
+
+	delete         = `delete from Sessions where token = ?`
+	delete_by_user = `delete from Sessions where user = ?`
+	delete_expired = `delete from Sessions where hard_deadline < ? or idle_deadline < ?`
+)
 
 type SQLDB struct {
 	db store.DBTx
@@ -49,14 +60,8 @@ func (s *SQLDB) List(ctx context.Context) ([]session.Record, error) {
 }
 
 func (s *SQLDB) Get(ctx context.Context, token session.Token) (session.Record, error) {
-	return s.get(s.db.QueryRowContext(ctx, get, token.Bytes()))
-}
+	row := s.db.QueryRowContext(ctx, get, token.Bytes())
 
-func (s *SQLDB) GetByUser(ctx context.Context, user uuid.UUID) (session.Record, error) {
-	return s.get(s.db.QueryRowContext(ctx, get_by_user, user.Bytes()))
-}
-
-func (s *SQLDB) get(row *sql.Row) (session.Record, error) {
 	var rec session.Record
 	if err := scan(&rec, row); err != nil {
 		if err == sql.ErrNoRows {
@@ -70,7 +75,7 @@ func (s *SQLDB) get(row *sql.Row) (session.Record, error) {
 }
 
 func (s *SQLDB) Create(ctx context.Context, rec session.Entity) error {
-	_, err := s.db.ExecContext(ctx, create, rec.Token.Bytes(), rec.User.Bytes(), rec.HardDeadline, rec.IdleDeadline, rec.PasswordVerified) // rec.renewd excluído e os demais adicionados.
+	_, err := s.db.ExecContext(ctx, create, rec.Token.Bytes(), rec.User, rec.HardDeadline, rec.IdleDeadline)
 	if err != nil {
 		return store.ErrExec.Cause(err).Make()
 	}
@@ -78,23 +83,8 @@ func (s *SQLDB) Create(ctx context.Context, rec session.Entity) error {
 	return nil
 }
 
-// Update att para UpdateActivity
-func (s *SQLDB) UpdateActivity(ctx context.Context, token session.Token, deadline time.Time) error {
-	res, err := s.db.ExecContext(ctx, update_idle, deadline, token.Bytes())
-	if err != nil {
-		return store.ErrExec.Cause(err).Make()
-	}
-
-	changed, err := res.RowsAffected()
-	if err == nil && changed == 0 {
-		return session.ErrNotFound
-	}
-
-	return nil
-}
-
-func (s *SQLDB) UpdatePasswordVerified(ctx context.Context, token session.Token, verifiedAt time.Time) error {
-	res, err := s.db.ExecContext(ctx, update_password_verified, verifiedAt, token.Bytes())
+func (s *SQLDB) Update(ctx context.Context, token session.Token, deadline time.Time) error {
+	res, err := s.db.ExecContext(ctx, update, deadline, token.Bytes())
 	if err != nil {
 		return store.ErrExec.Cause(err).Make()
 	}
@@ -116,9 +106,8 @@ func (s *SQLDB) Delete(ctx context.Context, token session.Token) error {
 	return nil
 }
 
-// Método DeleteByUser adicionado
 func (s *SQLDB) DeleteByUser(ctx context.Context, user uuid.UUID) error {
-	_, err := s.db.ExecContext(ctx, delete_by_user, user.Bytes())
+	_, err := s.db.ExecContext(ctx, delete_by_user, user)
 	if err != nil {
 		return store.ErrExec.Cause(err).Make()
 	}
@@ -142,23 +131,19 @@ func (s *SQLDB) RunTx(ctx context.Context, proc func(session.Store) error) error
 }
 
 func scan(ent *session.Record, scanner store.Scanner) error {
-	var bytes1, bytes2 []byte
+	var token []byte
 
 	err := scanner.Scan(
-		&bytes1,
-		&bytes2,
+		&token,
+		&ent.User,
 		&ent.HardDeadline,
 		&ent.IdleDeadline,
-		&ent.PasswordVerified,
 	)
 	if err != nil {
 		return err
 	}
 
-	return problem.Join(
-		service.Set(&ent.Token, bytes1, token_from_bytes),
-		service.Set(&ent.User, bytes2, uuid.FromBytes),
-	)
+	return service.Set(&ent.Token, token, token_from_bytes)
 }
 
 func token_from_bytes(bytes []byte) (session.Token, error) {
@@ -168,16 +153,3 @@ func token_from_bytes(bytes []byte) (session.Token, error) {
 
 	return session.Token(bytes), nil
 }
-
-const (
-	list        = `select token, user, hard_deadline, idle_deadline, password_verified from Sessions`
-	get         = list + ` where token = ?`
-	get_by_user = list + ` where user = ?`
-
-	create                   = `insert into Sessions (token, user, hard_deadline, idle_deadline, password_verified) values (?, ?, ?, ?, ?)`
-	update_idle              = `update Sessions set idle_deadline = ? where token = ?`
-	update_password_verified = `update Sessions set password_verified = ? where token = ?`
-	delete                   = `delete from Sessions where token = ?`
-	delete_by_user           = `delete from Sessions where user = ?`
-	delete_expired           = `delete from Sessions where hard_deadline < ? or idle_deadline < ?`
-)
