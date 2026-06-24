@@ -11,25 +11,21 @@ import (
 
 // on malformed session token, clear the token and let the user proceed as unlogged.
 type Handler struct {
-	Handler  http.Handler
-	Sessions session.Service
+	Handler http.Handler
 }
 
-func Wrap(handler http.Handler, sessions session.Service) http.Handler {
-	return &Handler{
-		Handler:  handler,
-		Sessions: sessions,
-	}
+func Wrap(handler http.Handler) http.Handler {
+	return &Handler{Handler: handler}
 }
 
-func WrapFunc(handler http.HandlerFunc, sessions session.Service) http.Handler {
-	return Wrap(handler, sessions)
+func WrapFunc(handler http.HandlerFunc) http.Handler {
+	return Wrap(handler)
 }
 
 func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	ctx, token, err := Session(ctx, r)
+	ctx, err := Session(ctx, r)
 	if err != nil {
 		if err != session.ErrInvalidToken {
 			resource.WriteError(w, err)
@@ -37,10 +33,6 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		DeleteCookie(w)
-	} 
-
-	if token != (session.Token{}) {
-		s.Sessions.Update(ctx, token)
 	}
 
 	r = r.WithContext(ctx)
@@ -49,17 +41,17 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 const SessionIdentifier = "session"
 
-func Session(ctx context.Context, r *http.Request) (context.Context, session.Token, error) {
+func Session(ctx context.Context, r *http.Request) (context.Context, error) {
 	token, err := Cookie(r)
 	if err != nil {
 		if err == http.ErrNoCookie {
-			return ctx, token, nil
+			return ctx, nil
 		}
 
-		return nil, session.Token{}, err
+		return nil, err
 	}
 
-	return context.WithValue(ctx, "session", token), token, nil
+	return context.WithValue(ctx, "session", token), nil
 }
 
 func Cookie(r *http.Request) (session.Token, error) {
@@ -68,7 +60,7 @@ func Cookie(r *http.Request) (session.Token, error) {
 		return session.Token{}, http.ErrNoCookie
 	}
 
-	token, err := session.FromString(s.Value)
+	token, err := session.ParseString(s.Value)
 	if err != nil {
 		return session.Token{}, session.ErrInvalidToken
 	}
