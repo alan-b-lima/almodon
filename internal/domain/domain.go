@@ -252,7 +252,7 @@ func MountCores(scheduler *scheduler.Scheduler, stores Stores) Cores {
 	cores := Cores{
 		Items:     itemserve.New(stores.Items),
 		Materials: materialserve.New(stores.Materials),
-		Sessions:  sessionserve.New(stores.Sessions, scheduler),
+		Sessions:  sessionserve.New(stores.Sessions, scheduler, nil),
 		Users:     userserve.New(stores.Users),
 	}
 
