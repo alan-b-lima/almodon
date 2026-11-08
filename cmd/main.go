@@ -1,21 +1,18 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"runtime"
-	"strings"
-	"time"
 
-	"github.com/alan-b-lima/almodon/internal/almodon"
 	"github.com/alan-b-lima/almodon/internal/server"
-	"github.com/alan-b-lima/almodon/internal/support/resource"
 )
 
 func main() {
+	// os.Chdir("..")
+
 	if len(os.Args) >= 2 {
 		switch os.Args[1] {
 		case "version":
@@ -32,116 +29,46 @@ func main() {
 		}
 	}
 
-	addr := ":4545"
-	if len(os.Args) >= 2 {
-		addr = os.Args[1]
-	}
-
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
-	if err := Main(addr, logger); err != nil {
-		logger.Error(err.Error())
-	}
-}
-
-func Main(addr string, log *slog.Logger) (reterr error) {
-	api, err := almodon.New()
+	handler, api, err := server.NewAlmodon()
 	if err != nil {
-		return err
+		fmt.Println(err)
+		return
 	}
-	defer func() {
-		if err := api.Close(); err != nil {
-			reterr = err
-		}
-	}()
+	defer api.Close()
 
-	var mux http.ServeMux
-	handler := Logger(log, &mux)
+	var httpHandler, httpsHandler http.ServeMux
 
-	server, err := server.New(addr, handler, log)
-	if err != nil {
-		return err
-	}
+	var (
+		httpServer  = server.Server{Addr: ":4545", Handler: &httpHandler, Logger: logger}
+		httpsServer = server.Server{Addr: ":4343", Handler: &httpsHandler, Logger: logger, CertFile: "server.rsa.crt", KeyFile: "server.rsa.key"}
+	)
 
-	mux.Handle("/", api)
-	mux.HandleFunc("/terminate", func(w http.ResponseWriter, r *http.Request) {
-		go Shutdown(log, server)
-		w.WriteHeader(http.StatusNoContent)
-	})
+	httpHandler.Handle("/api/", http.RedirectHandler("https://"+httpServer.Addr, http.StatusMovedPermanently))
+	httpHandler.Handle("/", handler)
 
-	go SignalShutdown(log, server)
+	httpsHandler.Handle("/api/", http.NotFoundHandler())
+	httpsHandler.Handle("/", handler)
 
-	log.Info("server listening at http://" + strings.Replace(server.Addr().String(), "[::]", "localhost", 1))
-	if err := server.Serve(); err != nil {
-		return err
-	}
+	done := make(chan struct{}, 2)
 
-	<-server.Done()
-
-	log.Info("server powering off...")
-	return nil
-}
-
-func SignalShutdown(log *slog.Logger, server *server.Server) {
-	<-server.Signal()
-	fmt.Print("\r")
-
-	if err := Shutdown(log, server); err != nil {
-		log.Error(err.Error())
-	}
-}
-
-func Shutdown(log *slog.Logger, server *server.Server) error {
-	log.Info("starting server shutdown...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	errs := make(chan error, 1)
 	go func() {
-		errs <- server.Shutdown(ctx)
+		if err := httpServer.Serve(); err != nil {
+			fmt.Println("http", err)
+		}
+		done <- struct{}{}
 	}()
 
-	select {
-	case <-ctx.Done():
-		server.CancelOngoing()
-		time.Sleep(5 * time.Second)
-
-	case <-server.Signal():
-
-	case err := <-errs:
-		if err == nil {
-			return nil
+	go func() {
+		if err := httpsServer.Serve(); err != nil {
+			fmt.Println("https", err)
 		}
-	}
+		done <- struct{}{}
+	}()
 
-	log.Warn("starting forceful server shutdown...")
-	return server.ForceShutdown()
-}
-
-func Logger(log *slog.Logger, h http.Handler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		rw := resource.NewResponseWriter(w)
-		start := time.Now()
-
-		h.ServeHTTP(rw, r)
-
-		elapsed := time.Since(start)
-
-		level := slog.LevelInfo
-		if rw.StatusCode()/100 == 5 {
-			level = slog.LevelError
-		}
-
-		log.LogAttrs(r.Context(), level, "completed request",
-			slog.Int("status", rw.StatusCode()),
-			slog.String("remote", r.RemoteAddr),
-			slog.String("method", r.Method),
-			slog.String("path", r.URL.String()),
-			slog.Duration("elapsed", elapsed),
-			slog.Any("error", rw.Error()),
-		)
-	}
+	<-done
+	<-done
 }
 
 const (
