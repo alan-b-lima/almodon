@@ -8,111 +8,157 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
+
+	"github.com/alan-b-lima/almodon/internal/client"
+	sessions "github.com/alan-b-lima/almodon/internal/domain/session/resource"
+	"github.com/alan-b-lima/almodon/internal/support/resource"
 )
 
-type Server struct {
-	listener net.Listener
-	server   http.Server
-
-	base   context.Context
-	cancel context.CancelFunc
-
-	signals chan os.Signal
-	active  chan struct{}
-}
-
-func New(addr string, handler http.Handler, logger *slog.Logger) (*Server, error) {
-	ln, err := net.Listen("tcp", addr)
+func NewAlmodon() (http.Handler, *API, error) {
+	client, err := client.New()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	var log *log.Logger
-	if logger != nil {
-		log = slog.NewLogLogger(logger.Handler(), slog.LevelError)
+	// Mount the API last not to handle conditinal
+	// closing, see [domain.New] for an example.
+	api, err := NewAPI()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/api/", api)
+	mux.Handle("/", client)
+
+	return sessions.Wrap(mux), api, nil
+}
+
+type Server struct {
+	Addr     string
+	Handler  http.Handler
+	CertFile string
+	KeyFile  string
+	Logger   *slog.Logger
+
+	server http.Server
+	base   context.Context
+	close  context.CancelFunc
+}
+
+func (s *Server) Serve() error {
+	if s.Handler == nil {
+		panic("nil handler")
+	}
+
+	var olog *log.Logger
+	if s.Logger != nil {
+		olog = slog.NewLogLogger(s.Logger.Handler(), slog.LevelError)
+	}
+
+	addr := ":http"
+	if s.Addr != "" {
+		addr = s.Addr
+	}
+
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
 	}
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
 
-	base, cancel := context.WithCancel(context.Background())
+	base, close := context.WithCancel(context.Background())
 
-	s := Server{
-		listener: ln,
+	*s = Server{
+		Addr:     ln.Addr().String(),
+		CertFile: s.CertFile,
+		KeyFile:  s.KeyFile,
+		Logger:   s.Logger,
 		server: http.Server{
-			Handler: handler,
+			Handler:  logger(s.Logger, s.Handler),
+			ErrorLog: olog,
 			BaseContext: func(net.Listener) context.Context {
 				return base
 			},
-			ErrorLog: log,
 		},
-
-		base:   base,
-		cancel: cancel,
-
-		signals: signals,
-		active:  make(chan struct{}),
+		base:  base,
+		close: close,
 	}
 
-	return &s, nil
-}
+	go s.parseSignals(signals)
 
-// Addr returns the address the server is listening on.
-func (s *Server) Addr() net.Addr {
-	return s.listener.Addr()
-}
+	authority := strings.Replace(ln.Addr().String(), "[::]", "localhost", 1)
 
-// Serve starts the server, this function only stops on error or server
-// termination. On error, it returns the error direclty, on termination, it
-// returns nil.
-func (s *Server) Serve() error {
-	if err := s.server.Serve(s.listener); err != nil {
-		if err == http.ErrServerClosed {
-			return nil
-		}
-
-		return err
+	if s.CertFile == "" {
+		s.Logger.Info("server listening at http://" + authority)
+		return s.server.Serve(ln)
+	} else {
+		s.Logger.Info("server listening at http://" + authority)
+		return s.server.ServeTLS(ln, s.CertFile, s.KeyFile)
 	}
-
-	return nil
-}
-
-func (s *Server) Done() <-chan struct{} {
-	return s.active
-}
-
-// Signal returns a channel that will be closed on the first signal received.
-func (s *Server) Signal() <-chan os.Signal {
-	return s.signals
-}
-
-// CancelOngoing cancels the base context for all requests.
-func (s *Server) CancelOngoing() {
-	s.cancel()
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	err := s.server.Shutdown(ctx)
-	if err != nil {
-		return err
-	}
-
-	s.release()
-	return nil
+	defer s.close()
+	return s.server.Shutdown(ctx)
 }
 
 func (s *Server) ForceShutdown() error {
-	defer s.release()
-
+	defer s.close()
 	return s.server.Close()
 }
 
-func (s *Server) release() error {
-	defer close(s.active)
+func (s *Server) parseSignals(signals chan os.Signal) {
+	defer signal.Stop(signals)
 
-	signal.Stop(s.signals)
-	s.cancel()
+	select {
+	case <-s.base.Done():
+		return
 
-	return s.listener.Close()
+	case <-signals:
+		go func() {
+			if err := s.Shutdown(context.Background()); err != nil {
+				s.Logger.Error("shutdown", slog.String("error", err.Error()))
+			}
+		}()
+	}
+
+	select {
+	case <-s.base.Done():
+		return
+
+	case <-signals:
+		s.ForceShutdown()
+	}
+}
+
+func logger(log *slog.Logger, h http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		rw := resource.NewResponseWriter(w)
+		start := time.Now()
+
+		h.ServeHTTP(rw, r)
+
+		elapsed := time.Since(start)
+
+		level := slog.LevelInfo
+		if rw.StatusCode()/100 == 5 {
+			level = slog.LevelError
+		}
+
+		log.LogAttrs(
+			r.Context(), level, "completed request",
+			slog.Int("status", rw.StatusCode()),
+			slog.String("remote", r.RemoteAddr),
+			slog.String("method", r.Method),
+			slog.String("path", r.URL.String()),
+			slog.Duration("elapsed", elapsed),
+			slog.Any("error", rw.Error()),
+		)
+	}
 }

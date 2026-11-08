@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alan-b-lima/almodon/internal/almodon"
 	"github.com/alan-b-lima/almodon/internal/domain"
 	"github.com/alan-b-lima/almodon/internal/domain/auth"
 	"github.com/alan-b-lima/almodon/internal/domain/user"
+	"github.com/alan-b-lima/almodon/internal/server"
 )
 
 func init() {
-	api, err := almodon.NewAPI(domain.InMemory, ^domain.RootUser)
+	api, err := server.NewAPI(domain.InMemory, ^domain.RootUser)
 	if err != nil {
 		panic(err)
 	}

@@ -1,4 +1,4 @@
-package almodon
+package server
 
 import (
 	"bytes"
