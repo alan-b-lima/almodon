@@ -11,17 +11,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alan-b-lima/almodon/internal/almodon"
 	"github.com/alan-b-lima/almodon/internal/domain"
 	"github.com/alan-b-lima/almodon/internal/domain/auth"
 	"github.com/alan-b-lima/almodon/internal/domain/promotion"
 	sessions "github.com/alan-b-lima/almodon/internal/domain/session/resource"
 	"github.com/alan-b-lima/almodon/internal/domain/user"
+	server "github.com/alan-b-lima/almodon/internal/server"
 	"github.com/alan-b-lima/almodon/pkg/uuid"
 )
 
 func init() {
-	api, err := almodon.NewAPI(domain.InMemory, ^domain.RootUser)
+	api, err := server.NewAPI(domain.InMemory, ^domain.RootUser)
 	if err != nil {
 		panic(err)
 	}
