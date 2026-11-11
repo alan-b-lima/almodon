@@ -28,12 +28,17 @@ type Opts struct {
 var _ session.Service = (*Core)(nil)
 
 func New(sessions session.Store, scheduler *scheduler.Scheduler, opts *Opts) *Core {
+	var o Opts
+	if opts != nil {
+		o = *opts
+	}
+
 	return &Core{
 		sessions:      sessions,
 		scheduler:     scheduler,
-		hard_deadline: cmp.Or(opts.HardDeadline, session.DefaultHardTimeout),
-		idle_deadline: cmp.Or(opts.IdleDeadline, session.DefaultIdleTimeout),
-		pure_get:      opts.PureGet,
+		hard_deadline: cmp.Or(o.HardDeadline, session.DefaultHardTimeout),
+		idle_deadline: cmp.Or(o.IdleDeadline, session.DefaultIdleTimeout),
+		pure_get:      o.PureGet,
 	}
 }
 
