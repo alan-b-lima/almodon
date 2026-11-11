@@ -1,18 +1,22 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
+	"sync"
 
 	"github.com/alan-b-lima/almodon/internal/server"
 )
 
 func main() {
-	// os.Chdir("..")
-
 	if len(os.Args) >= 2 {
 		switch os.Args[1] {
 		case "version":
@@ -38,37 +42,144 @@ func main() {
 	}
 	defer api.Close()
 
-	var httpHandler, httpsHandler http.ServeMux
+	addr := ":4545"
+	if len(os.Args) >= 2 {
+		addr = os.Args[1]
+	}
+
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer ln.Close()
 
 	var (
-		httpServer  = server.Server{Addr: ":4545", Handler: &httpHandler, Logger: logger}
-		httpsServer = server.Server{Addr: ":4343", Handler: &httpsHandler, Logger: logger, CertFile: "server.rsa.crt", KeyFile: "server.rsa.key"}
+		lnPlain, chPlain = newSink(ln.Addr())
+		lnTLS, chTLS     = newSink(ln.Addr())
 	)
 
-	httpHandler.Handle("/api/", http.RedirectHandler("https://"+httpServer.Addr, http.StatusMovedPermanently))
+	go multiplex(context.Background(), ln, chPlain, chTLS)
+
+	var httpHandler, httpsHandler http.ServeMux
+
+	httpHandler.HandleFunc("/api/", redirectToHTTPS)
 	httpHandler.Handle("/", handler)
 
-	httpsHandler.Handle("/api/", http.NotFoundHandler())
-	httpsHandler.Handle("/", handler)
+	httpsHandler.Handle("/api/", handler)
+	httpsHandler.Handle("/", http.NotFoundHandler())
 
-	done := make(chan struct{}, 2)
+	var wg sync.WaitGroup
 
-	go func() {
-		if err := httpServer.Serve(); err != nil {
+	wg.Go(func() {
+		server := server.Server{
+			Listener: lnPlain,
+			Handler:  &httpHandler,
+			Logger:   logger.With(slog.String("scheme", "http")),
+		}
+
+		if err := server.Serve(); err != nil && err != http.ErrServerClosed {
 			fmt.Println("http", err)
 		}
-		done <- struct{}{}
-	}()
+	})
 
-	go func() {
-		if err := httpsServer.Serve(); err != nil {
+	wg.Go(func() {
+		server := server.Server{
+			Listener: lnTLS,
+			Handler:  &httpsHandler,
+			CertFile: "server.crt.pem",
+			KeyFile:  "server.key.pem",
+			Logger:   logger.With(slog.String("scheme", "https")),
+		}
+
+		if err := server.Serve(); err != nil && err != http.ErrServerClosed {
 			fmt.Println("https", err)
 		}
-		done <- struct{}{}
+	})
+
+	wg.Wait()
+}
+
+func multiplex(ctx context.Context, ln net.Listener, plain, tls chan<- net.Conn) error {
+	go func() {
+		<-ctx.Done()
+		ln.Close()
 	}()
 
-	<-done
-	<-done
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return err
+			}
+
+			continue
+		}
+
+		go func() {
+			var b [1]byte
+			n, err := conn.Read(b[:])
+			if err != nil || n < len(b) {
+				conn.Close()
+				return
+			}
+
+			if b[0] == 0x16 {
+				tls <- newConn(b[:], conn)
+			} else {
+				plain <- newConn(b[:], conn)
+			}
+		}()
+	}
+}
+
+func newSink(addr net.Addr) (net.Listener, chan<- net.Conn) {
+	conns := make(chan net.Conn)
+	return listener{source: conns, laddr: addr}, conns
+}
+
+type listener struct {
+	source chan net.Conn
+	laddr  net.Addr
+}
+
+func (l listener) Accept() (net.Conn, error) {
+	conn, ok := <-l.source
+	if !ok {
+		return nil, net.ErrClosed
+	}
+
+	return conn, nil
+}
+
+func (l listener) Addr() net.Addr {
+	return l.laddr
+}
+
+func (l listener) Close() error {
+	close(l.source)
+	return nil
+}
+
+func newConn(b []byte, c net.Conn) net.Conn {
+	return conn{
+		Conn: c,
+		mr:   io.MultiReader(bytes.NewReader(b), c),
+	}
+}
+
+type conn struct {
+	net.Conn
+	mr io.Reader
+}
+
+func (c conn) Read(p []byte) (int, error) {
+	return c.mr.Read(p)
+}
+
+func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
+	url := "https://" + r.Host + r.RequestURI
+	http.Redirect(w, r, url, http.StatusMovedPermanently)
 }
 
 const (

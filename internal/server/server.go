@@ -38,7 +38,7 @@ func NewAlmodon() (http.Handler, *API, error) {
 }
 
 type Server struct {
-	Addr     string
+	Listener net.Listener
 	Handler  http.Handler
 	CertFile string
 	KeyFile  string
@@ -59,48 +59,34 @@ func (s *Server) Serve() error {
 		olog = slog.NewLogLogger(s.Logger.Handler(), slog.LevelError)
 	}
 
-	addr := ":http"
-	if s.Addr != "" {
-		addr = s.Addr
-	}
-
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
 
-	base, close := context.WithCancel(context.Background())
+	s.base, s.close = context.WithCancel(context.Background())
 
-	*s = Server{
-		Addr:     ln.Addr().String(),
-		CertFile: s.CertFile,
-		KeyFile:  s.KeyFile,
-		Logger:   s.Logger,
-		server: http.Server{
-			Handler:  logger(s.Logger, s.Handler),
-			ErrorLog: olog,
-			BaseContext: func(net.Listener) context.Context {
-				return base
-			},
+	s.server = http.Server{
+		Handler:  logger(s.Logger, s.Handler),
+		ErrorLog: olog,
+		BaseContext: func(net.Listener) context.Context {
+			return s.base
 		},
-		base:  base,
-		close: close,
 	}
 
 	go s.parseSignals(signals)
 
-	authority := strings.Replace(ln.Addr().String(), "[::]", "localhost", 1)
+	authority := strings.Replace(s.Addr().String(), "[::]", "localhost", 1)
 
 	if s.CertFile == "" {
 		s.Logger.Info("server listening at http://" + authority)
-		return s.server.Serve(ln)
+		return s.server.Serve(s.Listener)
 	} else {
-		s.Logger.Info("server listening at http://" + authority)
-		return s.server.ServeTLS(ln, s.CertFile, s.KeyFile)
+		s.Logger.Info("server listening at https://" + authority)
+		return s.server.ServeTLS(s.Listener, s.CertFile, s.KeyFile)
 	}
+}
+
+func (s *Server) Addr() net.Addr {
+	return s.Listener.Addr()
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
